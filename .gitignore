@@ -1,0 +1,23 @@
+# Личные настройки (у каждого свои)
+settings.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.iml
