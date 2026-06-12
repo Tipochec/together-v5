@@ -62,7 +62,9 @@ CATEGORIES = {
     # Игры
     "Steam": "gaming",
     "Xr_3da": "gaming",      # S.T.A.L.K.E.R.
-    "Isaac-ng": "gaming",    # The Binding of Isaac
+    "Isaac-ng": "gaming",
+    "Java": "tlauncher",
+    "Javaw": "tlauncher",
 
     # Торренты
     "Qbittorrent": "torrent",
@@ -79,6 +81,7 @@ CATEGORIES = {
 
     # Мои приложения
     "Python3.12": "myapps",
+    "Python": "myapps",
     
     "Searchapp": "Paneltask"
 }

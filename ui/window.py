@@ -230,6 +230,7 @@ const CAT_COLORS = {
   chat:'#5ddaaa',
   music:'#f0b352',
   work:'#a8d865',
+  tlauncher:'#006400',
 
   torrent:'#c678ff',
   photo:'#ff9ecb',
@@ -249,13 +250,14 @@ const CAT_NAMES = {
     work: '💻 Работа',
     music: '🎵 Музыка',
     gaming: '🎮 Игры',
-    Paneltask: 'Панель задач',
+    Paneltask: '📟 Панель задач',
 
     torrent: '⬇️ Торренты',
     photo: '🖼️ Фото',
     vpn: '🔒 VPN',
     archive: '📦 Архивы',
     myapps: '🛠️ Мои приложения',
+    tlauncher: "🧱 Майнкрафт",
 
     streaming: '📡 Стрим',
     idle: '😴 AFK',
