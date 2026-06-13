@@ -171,7 +171,6 @@ HTML = r"""
 
   <!-- СТАТИСТИКА -->
   <div id="page-stats">
-    <div id="session-time" style="background:#1a1820;border-radius:10px;padding:10px 12px;margin-bottom:14px;border:0.5px solid rgba(255,255,255,0.06)"></div>
     <div class="section-title" id="stats-date">сегодня</div>
     <div id="stats-categories" style="margin-bottom:16px"></div>
     <div class="section-title">топ приложений</div>
@@ -225,7 +224,6 @@ HTML = r"""
 const BADGES={gaming:'🎮 игра',browser:'🌐 браузер',chat:'💬 чат',
   music:'🎵 музыка',video:'▶ видео',work:'💻 работа',
   idle:'😴 AFK',streaming:'📡 стрим',other:'•'};
-const STATUS_LABEL={'active':'','watching':'📺 медиа','afk':'😴 AFK'};
 const CAT_COLORS = {
   gaming:'#a89ef0',
   browser:'#7ab8ef',
@@ -312,14 +310,10 @@ function updateCard(prefix,data,online){
     const col=document.getElementById(prefix==='my'?'my-col-title':'her-col-title');
     if(col) col.textContent=data.name;
   }
-  const status=data.status||'active';
-  const cat=status==='afk'?'idle':(data.category||'other');
+  const cat=data.afk?'idle':(data.category||'other');
   const badge=document.getElementById(prefix+'-badge');
   badge.className='badge badge-'+(online?cat:'idle');
-  if(!online) badge.textContent='офлайн';
-  else if(status==='afk') badge.textContent='😴 AFK';
-  else if(status==='watching') badge.textContent='📺 смотрит';
-  else badge.textContent=BADGES[cat]||cat;
+  badge.textContent=!online?'офлайн':(data.afk?'😴 AFK':(BADGES[cat]||cat));
 }
 
 let _prevFirst={you:'',her:''};
@@ -332,7 +326,7 @@ function updateTimeline(myH,herH){
         <div class="tl-app">пусто</div>
       </div>`;
     return items.slice(0,8).map((h,i)=>{
-      const isNew=i===0&&(h.app+h.time)!==_prevFirst[who];
+      const isNew=i===0&&h.app!==_prevFirst[who];
       return `<div class="tl-item${isNew?' tl-item-new':''}">
         <div class="tl-time">${h.time}</div>
         <div class="tl-dot tl-dot-${who}"></div>
@@ -342,8 +336,8 @@ function updateTimeline(myH,herH){
   };
   document.getElementById('timeline-you').innerHTML=renderCol(myH,'you');
   document.getElementById('timeline-her').innerHTML=renderCol(herH,'her');
-  if(myH&&myH[0])  _prevFirst.you=myH[0].app+myH[0].time;
-  if(herH&&herH[0]) _prevFirst.her=herH[0].app+herH[0].time;
+  if(myH&&myH[0])  _prevFirst.you=myH[0].app;
+  if(herH&&herH[0]) _prevFirst.her=herH[0].app;
 }
 
 function updateStatus(c){
@@ -380,43 +374,6 @@ function toggleAutostart(){
   pywebview.api.toggle_autostart().then(on=>{
     document.getElementById('btn-autostart').textContent=on?'включён ✓':'выключен';
   });
-}
-
-function fmtHMS(s){
-  if(!s||s<60) return s+'с';
-  const m=Math.floor(s/60);
-  if(m<60) return m+'м';
-  const h=Math.floor(m/60);
-  return h+'ч'+(m%60?' '+(m%60)+'м':'');
-}
-
-function loadTimeStats(){
-  if(!window.pywebview) return;
-  pywebview.api.get_state().then(s=>{
-    const t = s.time_stats;
-    const el = document.getElementById('session-time');
-    if(!el) return;
-    if(!t || (!t.active && !t.watching && !t.afk)){
-      el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;padding:4px">данные появятся через минуту</div>';
-      return;
-    }
-    const total = (t.active||0) + (t.watching||0);
-    const pctA = total>0 ? Math.round((t.active||0)/total*100) : 0;
-    const pctW = total>0 ? Math.round((t.watching||0)/total*100) : 0;
-    el.innerHTML=`
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px">
-        <span>За сессию: <b style="color:rgba(255,255,255,0.7)">${fmtTime(total)}</b></span>
-        <span style="color:rgba(255,255,255,0.2)">${fmtTime(t.afk||0)} AFK</span>
-      </div>
-      <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.05)">
-        <div style="width:${pctA}%;background:#534ab7;transition:width .5s"></div>
-        <div style="width:${pctW}%;background:#d4537e;transition:width .5s"></div>
-      </div>
-      <div style="display:flex;gap:12px;margin-top:5px;font-size:10px;color:rgba(255,255,255,0.25)">
-        <span><span style="color:#a89ef0">■</span> активен ${fmtTime(t.active||0)}</span>
-        <span><span style="color:#d4537e">■</span> медиа ${fmtTime(t.watching||0)}</span>
-      </div>`;
-  }).catch(()=>{});
 }
 
 function loadStats(period){
@@ -502,13 +459,11 @@ class WindowAPI:
                 "since":    current.get("since", datetime.now()).isoformat(),
                 "category": current.get("category","other"),
                 "afk":      current.get("afk", False),
-                "status":    current.get("status", "active"),
                 "name":     s.get("name","Я"),
             },
-            "my_history":  fmt(history, "you"),
-            "partner":     partner,
-            "connected":   connected,
-            "time_stats":  _tracker.get_time_stats(),
+            "my_history": fmt(history, "you"),
+            "partner":    partner,
+            "connected":  connected,
         }
 
     def get_settings(self):
