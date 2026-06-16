@@ -70,7 +70,7 @@ IGNORE_PROCESSES = {
     "smartscreen.exe", "securityhealthsystray.exe", "nvdisplay.container.exe",
     "widgets.exe", "widgetservice.exe", "useroobebroker.exe",
     "wudfhost.exe", "registry.exe", "memcompression.exe",
-    "ngentask.exe", "wmiprvse.exe", "taskmgr.exe",
+    "ngentask.exe", "wmiprvse.exe", "taskmgr.exe", "pt2500csm.exe", "calculatorapp.exe", "nvidia overlay.exe",
 }
 
 
