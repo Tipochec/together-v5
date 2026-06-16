@@ -9,7 +9,7 @@ import threading
 import urllib.request
 import urllib.error
 
-GEMINI_API_KEY = ""  # ← Вставь свой ключ сюда (или через settings.json)
+GEMINI_API_KEY = "AQ.Ab8RN6Jwk3qk9l89HgpyrWNFfsG90vJjJkSljOiMrvDwY6XN6w"  # ← Вставь свой ключ сюда (или через settings.json)
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     "gemini-2.5-flash-lite:generateContent?key="
