@@ -19,6 +19,7 @@ _network = None
 _window  = None
 _stats   = None
 _chat_window = None
+_window_visible = False  # окно создаётся hidden=True, см. run_webview_loop
 
 
 class WindowAPI:
@@ -118,10 +119,14 @@ class WindowAPI:
             return f"ошибка чтения лога: {e}"
 
     def hide_window(self):
+        global _window_visible
+        _window_visible = False
         if _window:
             _window.hide()
 
     def minimize_window(self):
+        global _window_visible
+        _window_visible = False
         if _window:
             _window.minimize()
 
@@ -170,6 +175,8 @@ def _do_quit():
 
 
 def open_window():
+    global _window_visible
+    _window_visible = True
     if _window:
         _window.show()
         
@@ -236,22 +243,30 @@ def run_webview_loop(tracker, network, stats=None):
     )
 
     def _on_incoming_message(data):
-        # Если открыто окно чата — просто перерисовываем список
+        sender = data.get("sender", "Партнёр")
+        text   = data.get("text", "")
+
+        # Если открыто окно чата — перерисовываем список сообщений
         if _chat_window:
             try:
                 _chat_window.evaluate_js("loadChat();")
             except Exception:
                 pass
-        # В любом случае показываем маленький toast в главном окне
-        # (вместо системного Windows-уведомления — идея была именно про
-        # "красивое маленькое", а не громкое системное)
-        if _window:
-            try:
-                sender = json.dumps(data.get("sender", "Партнёр"))
-                text   = json.dumps(data.get("text", ""))
-                _window.evaluate_js(f"showChatToast({sender}, {text})")
-            except Exception:
-                pass
+
+        if _window_visible:
+            # Главное окно на экране — красивый toast внутри интерфейса
+            if _window:
+                try:
+                    sender_js = json.dumps(sender)
+                    text_js   = json.dumps(text)
+                    _window.evaluate_js(f"showChatToast({sender_js}, {text_js})")
+                except Exception:
+                    pass
+        else:
+            # Окно свёрнуто/в трее — показывать внутри интерфейса некому,
+            # используем настоящее системное Windows-уведомление
+            from core.notifications import notify_chat_message
+            notify_chat_message(sender, text)
 
     network.on_message(_on_incoming_message)
 

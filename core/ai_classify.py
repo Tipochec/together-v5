@@ -14,7 +14,10 @@ import urllib.request
 import urllib.error
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL  = "meta-llama/llama-3.1-8b-instruct:free"
+# "openrouter/free" — авто-роутер, сам выбирает доступную бесплатную модель.
+# Так надёжнее, чем хардкодить конкретный slug — бесплатные модели у
+# OpenRouter периодически переименовываются/убираются без предупреждения.
+DEFAULT_MODEL  = "openrouter/free"
 
 CACHE_PATH = os.path.join(os.path.dirname(__file__), "..", "ai_categories_cache.json")
 LOG_PATH   = os.path.join(os.path.dirname(__file__), "..", "ai_debug.log")
@@ -132,17 +135,26 @@ def _ask_openrouter(process_name, window_title, api_key, model):
                 return text
             _log(f"OPENROUTER_UNEXPECTED process={process_name!r} raw_answer={text!r} → other")
             return "other"
-    except urllib.error.URLError as e:
-        _log(f"OPENROUTER_OFFLINE process={process_name!r} error={e}")
-        return None
     except urllib.error.HTTPError as e:
         body_text = ""
         try:
             body_text = e.read().decode("utf-8")[:200]
         except Exception:
             pass
-        _log(f"OPENROUTER_HTTP_ERROR process={process_name!r} code={e.code} body={body_text!r}")
+        if e.code == 403:
+            _log(f"OPENROUTER_HTTP_ERROR process={process_name!r} code=403 body={body_text!r} "
+                 f"(похоже на региональную блокировку OpenRouter — см. новости про ограничения "
+                 f"для российских аккаунтов с мая 2026, тут VPN тоже может понадобиться)")
+        elif e.code == 404:
+            _log(f"OPENROUTER_HTTP_ERROR process={process_name!r} code=404 body={body_text!r} "
+                 f"(модель '{model}' не найдена — возможно её переименовали/убрали, "
+                 f"попробуйте openrouter/free)")
+        else:
+            _log(f"OPENROUTER_HTTP_ERROR process={process_name!r} code={e.code} body={body_text!r}")
         return "other"
+    except urllib.error.URLError as e:
+        _log(f"OPENROUTER_OFFLINE process={process_name!r} error={e}")
+        return None
     except Exception as e:
         _log(f"OPENROUTER_ERROR process={process_name!r} error={e}")
         return None
