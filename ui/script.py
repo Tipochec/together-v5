@@ -145,6 +145,15 @@ function updateStatus(c){
   document.getElementById('conn-text').textContent=c?'оба онлайн':'ожидание партнёра...';
 }
 
+function updateConnLog(log){
+  const el = document.getElementById('conn-log');
+  if(!log || !log.length){ el.innerHTML=''; return; }
+  // Последние 6 событий, самое новое справа
+  el.innerHTML = log.slice(-6).map(e =>
+    `<span>${e.online ? '🟢' : '🔴'} ${e.time}</span>`
+  ).join('<span style="opacity:.3">·</span>');
+}
+
 function loadSettings(){
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
@@ -153,7 +162,7 @@ function loadSettings(){
     document.getElementById('inp-openrouter-key').value=s.openrouter_api_key||'';
     document.getElementById('inp-extra-ignore').value=(s.extra_ignore_processes||[]).join(', ');
     document.getElementById('inp-custom-sound').value=s.custom_sound_path||'';
-    document.getElementById('my-ip').textContent=s.my_ip||'—';
+    document.getElementById('inp-my-ip').value=s.my_ip||'';
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
   });
@@ -169,6 +178,7 @@ function saveSettings(){
     openrouter_api_key:document.getElementById('inp-openrouter-key').value,
     extra_ignore_processes:extraIgnore,
     custom_sound_path:document.getElementById('inp-custom-sound').value,
+    my_ip_override:document.getElementById('inp-my-ip').value,
   }).then(()=>{
     const b=document.getElementById('btn-save');
     b.textContent='Сохранено ✓';
@@ -264,16 +274,32 @@ function tick(){
   pywebview.api.get_state().then(s=>{
     if(s.my) updateCard('my',s.my,true);
     updateStatus(s.connected);
-    if(s.partner){
+    updateConnLog(s.connection_log);
+    // Раньше тут проверялось только "есть ли вообще когда-либо полученные
+    // данные о партнёре" (s.partner) — из-за этого карточка навсегда
+    // застревала на последнем известном приложении/вкладке даже после
+    // того, как партнёр вышел из сети. Теперь online по-настоящему зависит
+    // от актуального connected-статуса.
+    if(s.partner && s.connected){
       updateCard('her',s.partner,true);
       updateTimeline(s.my_history,s.partner.history||[]);
     } else {
-      updateCard('her',{},false);
+      updateCard('her',s.partner||{},false);
       updateTimeline(s.my_history,[]);
     }
   }).catch(()=>{});
 }
 
 window.addEventListener('pywebviewready',()=>{ tick(); setInterval(tick,1500); });
+
+function openChat(){
+  setChatBadge(false);           // открываем чат — считаем что всё прочитано
+  pywebview.api.open_chat();
+}
+
+function setChatBadge(show){
+  const b = document.getElementById('chat-badge');
+  if(b) b.style.display = show ? 'block' : 'none';
+}
 
 """

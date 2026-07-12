@@ -15,7 +15,12 @@ HTML = r"""
 <div class="titlebar">
   <div class="titlebar-title"><span class="heart">♥</span> Together</div>
     <div class="titlebar-btns">
-        <button class="titlebar-btn" onclick="pywebview.api.open_chat()" title="Чат">💬</button>
+        <button class="titlebar-btn" id="btn-chat" onclick="openChat()" title="Чат" style="position:relative">
+          💬
+          <span id="chat-badge" style="display:none;position:absolute;top:2px;right:2px;
+            width:8px;height:8px;border-radius:50%;background:#e5484d;
+            box-shadow:0 0 0 2px #16141c;"></span>
+        </button>
         <button class="titlebar-close" onclick="pywebview.api.minimize_window()" title="Свернуть">—</button>
         <button class="titlebar-close" onclick="pywebview.api.hide_window()" title="В трей">✕</button>
     </div>
@@ -33,6 +38,8 @@ HTML = r"""
       <div class="dot dot-waiting" id="conn-dot"></div>
       <span class="status-text" id="conn-text">ожидание партнёра...</span>
     </div>
+    <div id="conn-log" style="font-size:11px;color:rgba(255,255,255,0.35);
+      margin:-6px 0 10px 2px;display:flex;gap:8px;flex-wrap:wrap"></div>
     <div class="cards">
       <div class="card card-you" id="my-card">
         <div class="avatar avatar-you" id="my-avatar">Я</div>
@@ -97,8 +104,11 @@ HTML = r"""
       <input class="si" id="inp-ip" placeholder="10.147.X.X"/>
     </div>
     <div class="settings-row">
-      <span class="settings-label">Мой Zerotier IP</span>
-      <span id="my-ip" style="font-size:12px;color:rgba(255,255,255,0.25)">—</span>
+      <span class="settings-label">
+        Мой Zerotier IP
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">определяется автоматически, но можно поправить руками</div>
+      </span>
+      <input class="si" id="inp-my-ip" placeholder="10.147.X.X"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">

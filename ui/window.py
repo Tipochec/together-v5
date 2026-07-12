@@ -31,6 +31,15 @@ class WindowAPI:
         partner   = _network.get_partner_data() if _network else None
         connected = _network.is_connected()     if _network else False
 
+        # Раньше тут всегда показывалось имя, которое партнёр вписал СЕБЕ
+        # в настройки (оно и правда передаётся по сети в пакете активности) —
+        # а локальное поле "Имя партнёра" сохранялось в settings.json, но
+        # нигде не использовалось при отображении. Теперь если ты вписал
+        # своё название для партнёра — оно в приоритете.
+        if partner and s.get("partner_name"):
+            partner = dict(partner)
+            partner["name"] = s.get("partner_name")
+
         def fmt(items, who):
             return [{
                 "app":   h.get("app","—"),
@@ -53,6 +62,7 @@ class WindowAPI:
             "my_history":  fmt(history, "you"),
             "partner":     partner,
             "connected":   connected,
+            "connection_log": _network.get_connection_log() if _network else [],
             "time_stats":  _tracker.get_time_stats(),
         }
 
@@ -61,11 +71,15 @@ class WindowAPI:
         from core.tracker import load_settings
         from core.autostart import is_autostart_enabled
         s = load_settings()
-        try:
-            addrs = sk.getaddrinfo(sk.gethostname(), None)
-            zt_ip = next((a[4][0] for a in addrs if a[4][0].startswith("10.")), "—")
-        except Exception:
-            zt_ip = "—"
+        manual_ip = (s.get("my_ip_override") or "").strip()
+        if manual_ip:
+            zt_ip = manual_ip
+        else:
+            try:
+                addrs = sk.getaddrinfo(sk.gethostname(), None)
+                zt_ip = next((a[4][0] for a in addrs if a[4][0].startswith("10.")), "—")
+            except Exception:
+                zt_ip = "—"
         s["my_ip"]    = zt_ip
         s["autostart"] = is_autostart_enabled()
         return s
@@ -239,6 +253,13 @@ def run_webview_loop(tracker, network, stats=None):
                 _chat_window.evaluate_js("loadChat();")
             except Exception:
                 pass
+        else:
+            # Окно чата не открыто — зажигаем красную точку на кнопке 💬
+            if _window:
+                try:
+                    _window.evaluate_js("setChatBadge(true)")
+                except Exception:
+                    pass
 
         # Звуковое уведомление — без визуального попапа, не засоряет интерфейс
         from core.notifications import play_chat_sound

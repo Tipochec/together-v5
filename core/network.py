@@ -7,6 +7,7 @@ from datetime import datetime
 
 PORT = 39721
 RECONNECT_DELAY = 5
+OFFLINE_TIMEOUT = 15  # секунд без пакета от партнёра — считаем оффлайн
 
 
 def _settings_path():
@@ -31,8 +32,10 @@ class NetworkManager:
         self._on_status_change = []
         self._on_message = []
         self._running = False
-        self._connected = False
+        self._connected = False   # для колбэка on_status_change (эдж-детект)
+        self._last_seen = 0       # timestamp последнего ЛЮБОГО пакета от партнёра
         self._client_socket = None
+        self._connection_log = []  # [{"online": bool, "time": "ЧЧ:ММ"}] — последние 20
 
     def on_partner_update(self, cb): self._on_partner_update.append(cb)
     def on_status_change(self, cb):  self._on_status_change.append(cb)
@@ -48,12 +51,45 @@ class NetworkManager:
         return self.chat.get_messages(limit=limit)
     
     def is_connected(self):
-        return self._connected
+        # Раньше здесь возвращался флаг, который выставляла ТОЛЬКО клиентская
+        # часть соединения (self._run_client). Но у нас каждый ПК одновременно
+        # и сервер, и клиент — если по какой-то причине клиентское соединение
+        # моргало/переподключалось, а данные при этом реально шли через
+        # серверную сторону (входящее соединение от партнёра) — флаг всё
+        # равно показывал "оффлайн", хотя партнёр был на связи.
+        # Теперь смотрим по факту: было ли получено ЛЮБОЕ (activity/message)
+        # сообщение от партнёра за последние OFFLINE_TIMEOUT секунд —
+        # неважно через какую из двух ролей соединения оно пришло.
+        return (time.time() - self._last_seen) < OFFLINE_TIMEOUT
 
     def start(self):
         self._running = True
         threading.Thread(target=self._run_server, daemon=True).start()
         threading.Thread(target=self._run_client, daemon=True).start()
+        threading.Thread(target=self._watch_connection, daemon=True).start()
+
+    def _watch_connection(self):
+        # Раз в секунду проверяем, не поменялся ли статус "оба онлайн" —
+        # дёргаем колбэки (это нужно трею для 🟢/🔴 в меню) только когда
+        # состояние реально изменилось, а не на каждый тик
+        while self._running:
+            now = self.is_connected()
+            if now != self._connected:
+                self._connected = now
+                self._connection_log.append({
+                    "online": now,
+                    "time": datetime.now().strftime("%H:%M"),
+                })
+                self._connection_log = self._connection_log[-20:]
+                for cb in self._on_status_change:
+                    try:
+                        cb(now)
+                    except Exception:
+                        pass
+            time.sleep(1)
+
+    def get_connection_log(self):
+        return list(self._connection_log)
 
     def stop(self):
         self._running = False
@@ -90,7 +126,6 @@ class NetworkManager:
         send_t = threading.Thread(target=self._send_loop, args=(conn,), daemon=True)
         send_t.start()
         self._recv_loop(conn)
-        self._set_connected(False)
 
     # ── Клиент ────────────────────────────────────────────────
     def _run_client(self):
@@ -106,14 +141,12 @@ class NetworkManager:
                 sock.connect((ip, PORT))
                 sock.settimeout(10.0)
                 self._client_socket = sock
-                self._set_connected(True)
                 send_t = threading.Thread(target=self._send_loop, args=(sock,), daemon=True)
                 send_t.start()
                 self._recv_loop(sock)
             except Exception:
                 pass
             finally:
-                self._set_connected(False)
                 if self._client_socket:
                     try: self._client_socket.close()
                     except Exception: pass
@@ -219,6 +252,7 @@ class NetworkManager:
     def _process_activity(self, data):
         with self._lock:
             self.partner_data = data
+        self._last_seen = time.time()
 
         for cb in self._on_partner_update:
             try:
@@ -228,6 +262,7 @@ class NetworkManager:
 
 
     def _process_message(self, data):
+        self._last_seen = time.time()
         self.chat.add_message(
             sender=data.get("sender") or "Партнёр",
             text=data.get("text", "")[:1000],
@@ -241,6 +276,9 @@ class NetworkManager:
                 pass
     
     def _set_connected(self, val):
+        # Оставлено для обратной совместимости, если что-то извне ещё
+        # дёргает этот метод напрямую — но основная логика теперь в
+        # _watch_connection() выше, основанной на _last_seen.
         if self._connected != val:
             self._connected = val
             for cb in self._on_status_change:
