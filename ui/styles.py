@@ -12,15 +12,23 @@ CSS = r"""
     display:flex;align-items:center;justify-content:center;transition:all .15s}
   .titlebar-close:hover{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.7)}
   .content{padding:16px;height:calc(100vh - 40px);overflow-y:auto}
+  .content::-webkit-scrollbar{width:6px}
+  .content::-webkit-scrollbar-track{background:transparent}
+  .content::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:10px}
+  .content::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
   .card{background:#1a1820;border:0.5px solid rgba(255,255,255,0.07);border-radius:14px;
     padding:14px;border-top:2.5px solid transparent;transition:opacity .3s,filter .3s}
-  .card-you{border-top-color:#534ab7}.card-her{border-top-color:#d4537e}
+  .card-you,.card-her{border-top-color:transparent}
+  .gender-male{border-top-color:#534ab7 !important}
+  .gender-female{border-top-color:#d4537e !important}
   .offline-card{opacity:.4;filter:grayscale(40%)}
   .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
-    justify-content:center;font-weight:600;font-size:13px;margin-bottom:10px}
-  .avatar-you{background:rgba(83,74,183,0.2);color:#a89ef0}
-  .avatar-her{background:rgba(212,83,126,0.2);color:#e891b0}
+    justify-content:center;font-weight:600;font-size:13px;margin-bottom:10px;
+    background-size:cover;background-position:center;flex-shrink:0}
+  .avatar.gender-male{background-color:rgba(83,74,183,0.2);color:#a89ef0}
+  .avatar.gender-female{background-color:rgba(212,83,126,0.2);color:#e891b0}
+  .avatar.has-img{color:transparent}
   .card-label{font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:4px;
     text-transform:uppercase;letter-spacing:.05em}
   .card-app{font-size:14px;font-weight:500;color:#f0eeff;margin-bottom:3px;
@@ -69,9 +77,18 @@ CSS = r"""
   .settings-row{display:flex;justify-content:space-between;align-items:center;
     padding:11px 0;border-bottom:0.5px solid rgba(255,255,255,0.05);font-size:13px}
   .settings-label{color:rgba(255,255,255,0.55)}
-  input.si{background:#1a1820;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;
+  input.si,select.si{background:#1a1820;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;
     padding:4px 10px;color:#e8e6f0;font-size:12px;width:140px;outline:none}
-  input.si:focus{border-color:rgba(83,74,183,0.5)}
+  input.si:focus,select.si:focus{border-color:rgba(83,74,183,0.5)}
+  select.si{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a89ef0' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 10px center;
+    padding-right:26px;
+  }
+  select.si option{background:#1e1c26;color:#e8e6f0}
   .toggle{position:relative;width:36px;height:20px;flex-shrink:0}
   .toggle input{opacity:0;width:0;height:0}
   .toggle-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.1);

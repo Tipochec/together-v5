@@ -70,14 +70,13 @@ class TrayApp:
             cb()
 
     def _quit(self, icon=None, item=None):
-        self.tracker.stop()
-        if self.network:
-            self.network.stop()
-        # Сначала останавливаем иконку — потом выходим
-        # stop() вернёт управление из run(), после чего main завершится
+        # Сначала останавливаем иконку трея
         if self._icon:
             self._icon.stop()
-        # Сигналим webview что надо закрыться
+        # А дальше всей остановкой (tracker/network/stats + сохранение
+        # сессии) занимается _do_quit() в window.py — раньше он вызывался
+        # ЗДЕСЬ ЖЕ отдельно, и получалось двойное выполнение одного и того
+        # же кода (видно в логе как два подряд "stop() called")
         cb = getattr(builtins, "_together_quit", None)
         if cb:
             cb()

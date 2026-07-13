@@ -7,5 +7,7 @@
   "openrouter_model": "openrouter/free",
   "extra_ignore_processes": [],
   "custom_sound_path": "",
-  "my_ip_override": ""
+  "my_ip_override": "",
+  "gender": "male",
+  "avatar": ""
 }

@@ -47,6 +47,20 @@ body{
     padding:14px;
 }
 
+.messages::-webkit-scrollbar{
+    width:6px;
+}
+.messages::-webkit-scrollbar-track{
+    background:transparent;
+}
+.messages::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.12);
+    border-radius:10px;
+}
+.messages::-webkit-scrollbar-thumb:hover{
+    background:rgba(255,255,255,0.2);
+}
+
 .input{
     height:55px;
     border-top:.5px solid rgba(255,255,255,.06);
@@ -72,6 +86,50 @@ body{
     background:#534ab7;
     color:white;
     cursor:pointer;
+}
+
+.emoji-btn{
+    background:#1a1820;
+    font-size:16px;
+}
+.emoji-btn:hover{
+    background:#232030;
+}
+
+.emoji-picker{
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:65px;
+    max-height:180px;
+    background:#1a1820;
+    border:0.5px solid rgba(255,255,255,0.1);
+    border-radius:12px;
+    padding:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    overflow-y:auto;
+    z-index:20;
+}
+
+.emoji-grid{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    gap:2px;
+}
+
+.emoji-item{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:19px;
+    line-height:1;
+    padding:6px 0;
+    border-radius:8px;
+    cursor:pointer;
+    user-select:none;
+}
+.emoji-item:hover{
+    background:rgba(255,255,255,0.08);
 }
 
 .message{

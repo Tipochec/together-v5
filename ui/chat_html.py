@@ -34,11 +34,25 @@ HTML = r"""
 
 </div>
 
+<div id="emoji-picker" class="emoji-picker" style="display:none">
+<div class="emoji-grid" id="emoji-grid"></div>
+</div>
+
 <div class="input">
 
 <input
 id="message"
 placeholder="Напишите сообщение...">
+
+<button
+class="send emoji-btn"
+id="emoji-toggle-btn"
+onclick="toggleEmojiPicker()"
+title="Смайлики">
+
+🙂
+
+</button>
 
 <button
 class="send"

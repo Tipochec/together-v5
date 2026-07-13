@@ -52,6 +52,61 @@ async function sendMessage() {
     }
 }
 
+// Популярные эмодзи — просто статичный набор, ничего скачивать/грузить
+// не нужно, они уже "встроены" как обычный текст (юникод).
+const POPULAR_EMOJIS = [
+    "😀","😂","🤣","😊","😍","🥰","😘","😉","😎","🤩",
+    "🥳","😇","🙃","😅","🤔","🙄","😏","😴","😭","😢",
+    "😡","🤯","😱","🥺","😤","🤗","🤤","🙈","💀","👀",
+    "❤️","🧡","💛","💚","💙","💜","🖤","💔","💕","💖",
+    "👍","👎","👏","🙏","✌️","🤝","💪","👊","🤙","👌",
+    "🔥","✨","🎉","🎁","⭐","💯","☕","🍕","🍺","🌹",
+];
+
+let _emojiPickerFilled = false;
+
+function toggleEmojiPicker() {
+    const panel = document.getElementById("emoji-picker");
+    if (!panel) return;
+
+    if (panel.style.display === "block") {
+        panel.style.display = "none";
+        return;
+    }
+
+    if (!_emojiPickerFilled) {
+        const grid = document.getElementById("emoji-grid");
+        grid.innerHTML = POPULAR_EMOJIS
+            .map(e => `<span class="emoji-item" onclick="insertEmoji('${e}')">${e}</span>`)
+            .join("");
+        _emojiPickerFilled = true;
+    }
+    panel.style.display = "block";
+}
+
+function insertEmoji(emoji) {
+    const input = document.getElementById("message");
+    if (input) {
+        const start = input.selectionStart ?? input.value.length;
+        const end   = input.selectionEnd   ?? input.value.length;
+        input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+        const caret = start + emoji.length;
+        input.focus();
+        input.setSelectionRange(caret, caret);
+    }
+    document.getElementById("emoji-picker").style.display = "none";
+}
+
+// Клик мимо панели — закрываем её
+document.addEventListener("click", (ev) => {
+    const panel = document.getElementById("emoji-picker");
+    const btn   = document.getElementById("emoji-toggle-btn");
+    if (!panel || panel.style.display !== "block") return;
+    if (!panel.contains(ev.target) && ev.target !== btn) {
+        panel.style.display = "none";
+    }
+});
+
 async function clearChat() {
     document.getElementById("confirm-overlay").style.display = "flex";
 }

@@ -41,7 +41,7 @@ HTML = r"""
     <div class="cards">
       <div class="card card-you" id="my-card">
         <div class="online-since" id="my-online-since"></div>
-        <div class="avatar avatar-you" id="my-avatar">Я</div>
+        <div class="avatar" id="my-avatar">Я</div>
         <div class="card-label" id="my-label">ты</div>
         <div class="card-app" id="my-app">загрузка...</div>
         <div class="card-title" id="my-title"></div>
@@ -50,7 +50,7 @@ HTML = r"""
       </div>
       <div class="card card-her offline-card" id="her-card">
         <div class="online-since" id="her-online-since"></div>
-        <div class="avatar avatar-her" id="her-avatar">?</div>
+        <div class="avatar" id="her-avatar">?</div>
         <div class="card-label" id="her-label">она</div>
         <div class="card-app" id="her-app">не в сети</div>
         <div class="card-title" id="her-title"></div>
@@ -83,6 +83,8 @@ HTML = r"""
     <div id="stats-categories" style="margin-bottom:16px"></div>
     <div class="section-title">топ приложений</div>
     <div id="stats-apps"></div>
+    <div class="section-title" style="margin-top:16px">история сессий</div>
+    <div id="stats-sessions" style="font-size:11px;color:rgba(255,255,255,0.3)"></div>
     <div style="display:flex;gap:6px;margin-top:14px">
       <button class="btn btn-primary" id="btn-today" onclick="loadStats('today')" style="flex:1">Сегодня</button>
       <button class="btn" id="btn-week" onclick="loadStats('week')" style="flex:1">7 дней</button>
@@ -92,8 +94,29 @@ HTML = r"""
   <!-- НАСТРОЙКИ -->
   <div id="page-settings">
     <div class="settings-row">
+      <span class="settings-label">
+        Моя аватарка
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">JPG/PNG — само обрежется в квадрат</div>
+      </span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar gender-male" id="settings-avatar-preview" style="width:40px;height:40px;margin-bottom:0">Я</div>
+        <button class="btn" onclick="pickAvatar()">Выбрать файл</button>
+        <button class="btn btn-danger" onclick="removeAvatar()" title="Убрать аватарку">✕</button>
+      </div>
+    </div>
+    <div class="settings-row">
       <span class="settings-label">Моё имя</span>
       <input class="si" id="inp-name" placeholder="Введи имя"/>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">
+        Мой пол
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">определяет цвет твоей карточки на обоих экранах</div>
+      </span>
+      <select class="si" id="inp-gender">
+        <option value="male">Мужской</option>
+        <option value="female">Женский</option>
+      </select>
     </div>
     <div class="settings-row">
       <span class="settings-label">Имя партнёра</span>

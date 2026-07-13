@@ -3,7 +3,7 @@ JS = r"""
 const BADGES={gaming:'🎮 игра',browser:'🌐 браузер',chat:'💬 чат',
   music:'🎵 музыка',video:'▶ видео',work:'💻 работа',
   idle:'😴 AFK',streaming:'📡 стрим',other:'•'};
-const STATUS_LABEL={'active':'','watching':'📺 медиа','afk':'😴 AFK'};
+const STATUS_LABEL={'active':'','afk':'😴 AFK'};
 
 function runDebugScan(){
   const el=document.getElementById('debug-result');
@@ -67,7 +67,49 @@ function showPage(name,btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   if(name==='settings') loadSettings();
-  if(name==='stats'){ loadStats('today'); loadTimeStats(); }
+  if(name==='stats'){ loadStats('today'); loadTimeStats(); loadSessionHistory(); }
+}
+
+function loadSessionHistory(){
+  pywebview.api.get_session_history().then(sessions=>{
+    const el = document.getElementById('stats-sessions');
+    if(!sessions || !sessions.length){
+      el.innerHTML = '<div style="color:rgba(255,255,255,0.2)">пока пусто — появится после первого закрытия приложения</div>';
+      return;
+    }
+    el.innerHTML = sessions.map(s=>{
+      const start = new Date(s.started_at);
+      const end   = new Date(s.ended_at);
+      const now = new Date();
+      const daysAgo = Math.round((new Date(now.toDateString()) - new Date(start.toDateString())) / 86400000);
+      let dateStr;
+      if(daysAgo===0) dateStr='сегодня';
+      else if(daysAgo===1) dateStr='вчера';
+      else if(daysAgo===2) dateStr='позавчера';
+      else dateStr=start.toLocaleDateString([], {day:'2-digit', month:'2-digit'});
+      const timeStr = `${start.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}–${end.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+      const total = s.active + s.afk;
+      const activePct = total ? Math.round(s.active/total*100) : 0;
+      const isToday = daysAgo===0;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;
+        margin-bottom:6px;background:#1a1820;border-radius:10px;
+        border-left:2.5px solid ${isToday ? '#534ab7' : 'rgba(255,255,255,0.1)'}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-bottom:4px">
+            ${isToday ? '<span style="color:#a89ef0">●</span> ' : ''}${dateStr}, ${timeStr}
+          </div>
+          <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;display:flex">
+            <div style="width:${activePct}%;background:#534ab7"></div>
+            <div style="width:${100-activePct}%;background:#f0b352"></div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:13px;font-weight:600;color:#e8e6f0">${fmtTime(total)}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.3)">${activePct}% активен</div>
+        </div>
+      </div>`;
+    }).join('');
+  }).catch(()=>{});
 }
 
 function timeSince(iso){
@@ -100,19 +142,33 @@ function updateCard(prefix,data,online){
   document.getElementById(prefix+'-app').textContent=newApp;
   document.getElementById(prefix+'-title').textContent=online?(data.title||''):'';
   document.getElementById(prefix+'-time').textContent=online?timeSince(data.since):'';
+  const avatarEl = document.getElementById(prefix+'-avatar');
   if(data.name){
-    document.getElementById(prefix+'-avatar').textContent=data.name[0].toUpperCase();
     document.getElementById(prefix+'-label').textContent=data.name;
     const col=document.getElementById(prefix==='my'?'my-col-title':'her-col-title');
     if(col) col.textContent=data.name;
   }
+  if(data.avatar){
+    avatarEl.style.backgroundImage=`url("${data.avatar}")`;
+    avatarEl.classList.add('has-img');
+    avatarEl.textContent='';
+  } else {
+    avatarEl.style.backgroundImage='';
+    avatarEl.classList.remove('has-img');
+    if(data.name) avatarEl.textContent=data.name[0].toUpperCase();
+  }
+  const genderClass = data.gender==='female' ? 'gender-female' : 'gender-male';
+  const cardEl = document.getElementById(prefix+'-card');
+  cardEl.classList.remove('gender-male','gender-female');
+  cardEl.classList.add(genderClass);
+  avatarEl.classList.remove('gender-male','gender-female');
+  avatarEl.classList.add(genderClass);
   const status=data.status||'active';
   const cat=status==='afk'?'idle':(data.category||'other');
   const badge=document.getElementById(prefix+'-badge');
   badge.className='badge badge-'+(online?cat:'idle');
   if(!online) badge.textContent='офлайн';
   else if(status==='afk') badge.textContent='😴 AFK';
-  else if(status==='watching') badge.textContent='📺 смотрит';
   else badge.textContent=BADGES[cat]||cat;
 }
 
@@ -168,9 +224,34 @@ function updateMyOnlineSince(since){
   el.innerHTML = since ? `<span class="dot"></span> в сети с ${since}` : '';
 }
 
+function renderAvatarPreview(dataUri){
+  const el=document.getElementById('settings-avatar-preview');
+  if(!el) return;
+  if(dataUri){
+    el.style.backgroundImage=`url("${dataUri}")`;
+    el.classList.add('has-img');
+    el.textContent='';
+  } else {
+    el.style.backgroundImage='';
+    el.classList.remove('has-img');
+    el.textContent='Я';
+  }
+}
+
+function pickAvatar(){
+  pywebview.api.pick_avatar().then(uri=>{
+    if(uri) renderAvatarPreview(uri);
+  });
+}
+
+function removeAvatar(){
+  pywebview.api.remove_avatar().then(()=>renderAvatarPreview(null));
+}
+
 function loadSettings(){
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
+    document.getElementById('inp-gender').value=s.gender||'male';
     document.getElementById('inp-partner-name').value=s.partner_name||'';
     document.getElementById('inp-ip').value=s.ip||'';
     document.getElementById('inp-openrouter-key').value=s.openrouter_api_key||'';
@@ -179,6 +260,7 @@ function loadSettings(){
     document.getElementById('inp-my-ip').value=s.my_ip||'';
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
+    renderAvatarPreview(s.avatar||'');
   });
 }
 
@@ -187,6 +269,7 @@ function saveSettings(){
     .split(',').map(s=>s.trim()).filter(Boolean);
   pywebview.api.save_settings({
     name:document.getElementById('inp-name').value,
+    gender:document.getElementById('inp-gender').value,
     partner_name:document.getElementById('inp-partner-name').value,
     ip:document.getElementById('inp-ip').value,
     openrouter_api_key:document.getElementById('inp-openrouter-key').value,
@@ -226,9 +309,10 @@ function fmtHMS(s){
 
 function loadTimeStats(){
   pywebview.api.get_time_stats().then(t=>{
-    if(!t||!t.total) return;
-    const pctA = Math.round(t.active   / (t.total||1) * 100);
-    const pctW = Math.round(t.watching / (t.total||1) * 100);
+    if(!t) return;
+    const wholeSession = (t.active||0) + (t.afk||0);
+    if(!wholeSession) return;
+    const pctA = Math.round(t.active / wholeSession * 100);
     const el = document.getElementById('session-time');
     if(!el) return;
     el.innerHTML = `
@@ -238,11 +322,11 @@ function loadTimeStats(){
       </div>
       <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px">
         <div style="width:${pctA}%;background:#534ab7;border-radius:3px;transition:width .5s"></div>
-        <div style="width:${pctW}%;background:#d4537e;border-radius:3px;transition:width .5s"></div>
+        <div style="width:${100-pctA}%;background:rgba(255,255,255,0.08);border-radius:3px;transition:width .5s"></div>
       </div>
       <div style="display:flex;gap:12px;margin-top:5px;font-size:10px;color:rgba(255,255,255,0.25)">
         <span><span style="color:#a89ef0">■</span> активен ${fmtHMS(t.active)}</span>
-        <span><span style="color:#d4537e">■</span> медиа ${fmtHMS(t.watching)}</span>
+        <span><span style="color:rgba(255,255,255,0.3)">■</span> AFK ${fmtHMS(t.afk)}</span>
       </div>`;
   }).catch(()=>{});
 }

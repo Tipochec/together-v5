@@ -246,6 +246,8 @@ class NetworkManager:
         return {
             "type": "activity",
             "name": s.get("name") or "Партнёр",
+            "gender": s.get("gender") or "male",
+            "avatar": s.get("avatar") or "",
             "app":  current.get("app", "—"),
             "title": current.get("title", ""),
             "category": current.get("category", "other"),

@@ -1,6 +1,9 @@
 """
 Трекер активности - читает активное окно каждую секунду.
-Три состояния: active / watching / afk
+Два состояния: active / afk.
+AFK считается по бездействию клавиатуры/мыши (GetLastInputInfo),
+не зависит от того, что происходит на экране (в т.ч. видео/музыка) —
+если человек не трогал клаву/мышь AFK_TIMEOUT секунд, это AFK.
 """
 import time
 import threading
@@ -14,13 +17,9 @@ from collections import deque
 user32   = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
-from core.app_maps import (
-    APP_NAMES, BROWSER_PROCESSES, CATEGORIES,
-    MEDIA_CATEGORIES, MEDIA_TITLES, clean_process_name,
-)
+from core.app_maps import APP_NAMES, BROWSER_PROCESSES, CATEGORIES
 
-AFK_TIMEOUT  = 300   # 5 минут без ввода → проверяем медиа
-AFK_HARD     = 1800  # 30 минут без ввода → AFK в любом случае
+AFK_TIMEOUT = 600   # 10 минут без ввода клавы/мыши → AFK
 
 
 def _settings_path():
@@ -53,7 +52,7 @@ class ActivityTracker:
         self.current = {
             "app": "—", "title": "", "category": "idle",
             "since": datetime.now(),
-            "status": "active",   # active | watching | afk
+            "status": "active",   # active | afk
         }
         self.history  = deque(maxlen=100)
         self._lock    = threading.Lock()
@@ -62,9 +61,10 @@ class ActivityTracker:
 
         # Счётчики времени за сессию
         self._time_active   = 0
-        self._time_watching = 0
         self._time_afk      = 0
         self._session_start = datetime.now()
+        self._session_db_id = None   # id строки в sessions — для UPDATE вместо повторного INSERT
+        self._last_checkpoint = time.time()
 
     def on_change(self, cb):
         self._on_change_callbacks.append(cb)
@@ -81,9 +81,8 @@ class ActivityTracker:
         with self._lock:
             return {
                 "active":   self._time_active,
-                "watching": self._time_watching,
                 "afk":      self._time_afk,
-                "total":    self._time_active + self._time_watching,
+                "total":    self._time_active,
                 "session_start": self._session_start.isoformat(),
             }
 
@@ -141,36 +140,139 @@ class ActivityTracker:
 
                 with self._lock:
                     if status == "active":
-                        self._time_active   += 1
-                    elif status == "watching":
-                        self._time_watching += 1
+                        self._time_active += 1
                     else:
-                        self._time_afk      += 1
+                        self._time_afk    += 1
 
             except Exception:
                 pass
+
+            if time.time() - self._last_checkpoint >= 300:  # раз в 5 минут
+                self._checkpoint_session()
+                self._last_checkpoint = time.time()
 
             time.sleep(1)
 
     def stop(self):
         self._running = False
+        self._log_checkpoint("stop() called — финальный чекпоинт")
+        self._checkpoint_session()
+
+    def _log_checkpoint(self, msg):
+        try:
+            log_path = os.path.join(os.path.dirname(__file__), "..", "ai_debug.log")
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SESSION_CHECKPOINT: {msg}\n")
+        except Exception:
+            pass
+
+    def _checkpoint_session(self):
+        """
+        Сохраняет/обновляет ТЕКУЩУЮ сессию в БД. Раньше сохранение шло
+        только внутри stop(), а stop() вызывается только при явном
+        "Закрыть" из трея — если человек просто выключил ПК или закрыл
+        окно (уходит в трей, не завершая процесс), это сохранение вообще
+        никогда не срабатывало, и БД оставалась пустой. Теперь это
+        чекпоинт: вызывается и раз в 5 минут во время работы, и при
+        реальном закрытии — теряем максимум последние ~5 минут данных
+        при аварийном завершении (крах, обесточивание и т.п.), а не всю
+        сессию целиком.
+        """
+        with self._lock:
+            active, afk = self._time_active, self._time_afk
+        watching = 0  # состояние "watching" убрано, колонка в БД оставлена для совместимости
+
+        if active < 30:
+            self._log_checkpoint(f"пропущен — слишком мало данных (active={active})")
+            return
+
+        try:
+            import sqlite3
+            db_path = os.path.join(os.path.dirname(__file__), "..", "stats.db")
+            # timeout — сколько ждать, если файл БД сейчас занят другим
+            # потоком (stats.py тоже пишет в тот же stats.db каждую
+            # секунду) — раньше таймаута не было явно указано, и при
+            # совпадении по времени запись могла тихо не пройти
+            conn = sqlite3.connect(db_path, timeout=10)
+
+            # Проверяем, нет ли уже таблицы sessions с ДРУГОЙ (несовместимой)
+            # структурой — например, оставшейся от более раннего варианта
+            # этой фичи. CREATE TABLE IF NOT EXISTS её не тронет, а INSERT
+            # потом просто упадёт с "no column named active_seconds".
+            # Переименовываем старую (не удаляем!) и создаём новую с нуля.
+            existing_cols = [r[1] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+            if existing_cols and "active_seconds" not in existing_cols:
+                conn.execute("ALTER TABLE sessions RENAME TO sessions_legacy")
+                self._log_checkpoint(
+                    f"обнаружена несовместимая старая таблица sessions "
+                    f"(колонки: {existing_cols}) — переименована в sessions_legacy, "
+                    f"данные не потеряны, создаю новую таблицу"
+                )
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT NOT NULL,
+                    active_seconds INTEGER NOT NULL,
+                    watching_seconds INTEGER NOT NULL,
+                    afk_seconds INTEGER NOT NULL
+                )
+            """)
+            now_iso = datetime.now().isoformat()
+
+            if self._session_db_id is None:
+                cur = conn.execute("""
+                    INSERT INTO sessions
+                    (started_at, ended_at, active_seconds, watching_seconds, afk_seconds)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (self._session_start.isoformat(), now_iso, active, watching, afk))
+                self._session_db_id = cur.lastrowid
+                self._log_checkpoint(f"INSERT новой строки id={self._session_db_id} "
+                                      f"(active={active}, watching={watching}, afk={afk})")
+            else:
+                conn.execute("""
+                    UPDATE sessions
+                    SET ended_at = ?, active_seconds = ?, watching_seconds = ?, afk_seconds = ?
+                    WHERE id = ?
+                """, (now_iso, active, watching, afk, self._session_db_id))
+                self._log_checkpoint(f"UPDATE строки id={self._session_db_id} "
+                                      f"(active={active}, watching={watching}, afk={afk})")
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self._log_checkpoint(f"ОШИБКА при записи: {e}")
+
+    def get_session_history(self, limit=10):
+        try:
+            import sqlite3
+            db_path = os.path.join(os.path.dirname(__file__), "..", "stats.db")
+            conn = sqlite3.connect(db_path, timeout=10)
+            rows = conn.execute("""
+                SELECT started_at, ended_at, active_seconds, watching_seconds, afk_seconds
+                FROM sessions
+                ORDER BY id DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+            conn.close()
+            return [
+                {
+                    "started_at": r[0], "ended_at": r[1],
+                    "active": r[2], "watching": r[3], "afk": r[4],
+                }
+                for r in rows
+            ]
+        except Exception:
+            return []
 
     def _calc_status(self, idle_secs, app, title):
-        if idle_secs < AFK_TIMEOUT:
-            return "active"
-        if idle_secs >= AFK_HARD:
-            return "afk"
-
-        category = CATEGORIES.get(app, "other")
-        if category in MEDIA_CATEGORIES:
-            return "watching"
-
-        if category == "browser" and title:
-            title_lower = title.lower()
-            if any(kw in title_lower for kw in MEDIA_TITLES):
-                return "watching"
-
-        return "afk"
+        # Единственный критерий — бездействие клавиатуры/мыши.
+        # Что при этом происходит на экране (ютуб, фильм, музыка) —
+        # не имеет значения: сидит человек и правда смотрит или
+        # отошёл на час, оставив видео включённым — с точки зрения
+        # трекера активности это AFK.
+        return "active" if idle_secs < AFK_TIMEOUT else "afk"
 
     def _get_idle_seconds(self):
         try:

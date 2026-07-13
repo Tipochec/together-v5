@@ -13,7 +13,7 @@ class ChatManager:
         self._init_db()
 
     def _connect(self):
-        return sqlite3.connect(DB_PATH)
+        return sqlite3.connect(DB_PATH, timeout=10)
 
     def _init_db(self):
         with self._connect() as conn:

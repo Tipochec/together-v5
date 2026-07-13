@@ -58,6 +58,8 @@ class WindowAPI:
                 "afk":      current.get("afk", False),
                 "status":    current.get("status", "active"),
                 "name":     s.get("name") or "Я",
+                "gender":   s.get("gender") or "male",
+                "avatar":   s.get("avatar") or "",
             },
             "my_history":  fmt(history, "you"),
             "partner":     partner,
@@ -96,10 +98,62 @@ class WindowAPI:
             print("save_settings error:", e)
         return True
 
+    def pick_avatar(self):
+        """
+        Открывает системный диалог выбора файла, обрезает картинку в квадрат
+        и сохраняет как data URI прямо в settings.json (см. core/avatar.py —
+        там же объяснение почему не отдельный файл). Возвращает готовую
+        строку data:image/... для мгновенного превью в интерфейсе, либо
+        None, если пользователь отменил выбор или файл не открылся.
+        """
+        global _window
+        if not _window:
+            return None
+        try:
+            result = _window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=("Изображения (*.png;*.jpg;*.jpeg;*.webp;*.bmp)",),
+            )
+            if not result:
+                return None
+            path = result[0]
+
+            from core.avatar import make_avatar_data_uri
+            data_uri = make_avatar_data_uri(path)
+            if not data_uri:
+                return None
+
+            from core.tracker import load_settings, _settings_path
+            current = load_settings()
+            current["avatar"] = data_uri
+            with open(_settings_path(), "w", encoding="utf-8") as f:
+                json.dump(current, f, ensure_ascii=False, indent=2)
+            return data_uri
+        except Exception as e:
+            print("pick_avatar error:", e)
+            return None
+
+    def remove_avatar(self):
+        from core.tracker import load_settings, _settings_path
+        try:
+            current = load_settings()
+            current["avatar"] = ""
+            with open(_settings_path(), "w", encoding="utf-8") as f:
+                json.dump(current, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print("remove_avatar error:", e)
+        return True
+
     def get_time_stats(self):
         if not _tracker:
-            return {"active": 0, "watching": 0, "afk": 0, "total": 0}
+            return {"active": 0, "afk": 0, "total": 0}
         return _tracker.get_time_stats()
+
+    def get_session_history(self):
+        if not _tracker:
+            return []
+        return _tracker.get_session_history(limit=10)
 
     def get_stats(self, period):
         from core.stats import fmt_time
