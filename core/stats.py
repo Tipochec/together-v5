@@ -289,6 +289,19 @@ class StatsTracker:
             """).fetchall()
         return [dict(r) for r in rows]
 
+    def get_all_time(self, limit=30):
+        """Суммарное время по каждому приложению за ВСЕ дни, что есть в базе
+        (не только сегодня/неделя) — топ-N по убыванию. Каждый день у
+        приложения своя строка (see app_time UNIQUE(date, app)), поэтому
+        общий итог считается через SUM(seconds) с группировкой по app."""
+        with get_db() as conn:
+            rows = conn.execute("""
+                SELECT app, category, SUM(seconds) as seconds
+                FROM app_time
+                GROUP BY app ORDER BY seconds DESC LIMIT ?
+            """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
     def get_category_totals(self):
         today = date.today().isoformat()
         with get_db() as conn:

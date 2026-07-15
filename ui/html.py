@@ -83,12 +83,13 @@ HTML = r"""
     <div id="stats-categories" style="margin-bottom:16px"></div>
     <div class="section-title">топ приложений</div>
     <div id="stats-apps"></div>
-    <div class="section-title" style="margin-top:16px">история сессий</div>
-    <div id="stats-sessions" style="font-size:11px;color:rgba(255,255,255,0.3)"></div>
     <div style="display:flex;gap:6px;margin-top:14px">
       <button class="btn btn-primary" id="btn-today" onclick="loadStats('today')" style="flex:1">Сегодня</button>
       <button class="btn" id="btn-week" onclick="loadStats('week')" style="flex:1">7 дней</button>
+      <button class="btn" id="btn-all" onclick="loadStats('all')" style="flex:1">Всё время</button>
     </div>
+    <div class="section-title" style="margin-top:16px">история сессий</div>
+    <div id="stats-sessions" style="font-size:11px;color:rgba(255,255,255,0.3)"></div>
   </div>
 
   <!-- НАСТРОЙКИ -->

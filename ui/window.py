@@ -167,6 +167,14 @@ class WindowAPI:
                 cats_raw[c] = cats_raw.get(c, 0) + a["seconds"]
             categories = [{"category": k, "seconds": v}
                           for k, v in sorted(cats_raw.items(), key=lambda x: -x[1])]
+        elif period == "all":
+            apps = _stats.get_all_time(limit=30)
+            cats_raw = {}
+            for a in apps:
+                c = a["category"]
+                cats_raw[c] = cats_raw.get(c, 0) + a["seconds"]
+            categories = [{"category": k, "seconds": v}
+                          for k, v in sorted(cats_raw.items(), key=lambda x: -x[1])]
         else:
             apps       = _stats.get_today()
             categories = _stats.get_category_totals()

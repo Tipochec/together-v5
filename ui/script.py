@@ -342,9 +342,10 @@ function loadTimeStats(){
 function loadStats(period){
   document.getElementById('btn-today').className='btn'+(period==='today'?' btn-primary':'');
   document.getElementById('btn-week').className ='btn'+(period==='week' ?' btn-primary':'');
+  document.getElementById('btn-all').className  ='btn'+(period==='all'  ?' btn-primary':'');
   pywebview.api.get_stats(period).then(data=>{
     document.getElementById('stats-date').textContent=
-      period==='today'?'сегодня':'последние 7 дней';
+      period==='today'?'сегодня':(period==='week'?'последние 7 дней':'за всё время (топ-30)');
     const total=data.total||1;
     document.getElementById('stats-categories').innerHTML=
       (data.categories||[]).length===0
