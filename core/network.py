@@ -13,6 +13,54 @@ RECONNECT_GRACE = 30    # ещё столько секунд ждём подтв
                          # обычных сетевых морганий VPN — не создаём фантомные
                          # "перезаходы" в статусе/логе из-за секундного обрыва)
 
+LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "network_debug.log")
+HEALTH_LOG_INTERVAL = 300  # раз в 5 минут пишем в лог "всё ок" / текущий статус
+
+_log_lock = threading.Lock()
+_last_throttled = {}
+_throttle_lock = threading.Lock()
+
+
+def _log(msg):
+    """Пишет строку с таймстампом в network_debug.log (и в stdout — видно
+    при запуске из консоли). Тот же формат, что и у _log в ai_classify.py,
+    для единообразия."""
+    line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
+    print(line)
+    try:
+        with _log_lock:
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception:
+        pass
+
+
+def _log_throttled(key, msg, min_interval=60):
+    """Как _log(), но не чаще одного раза в min_interval секунд для одного
+    и того же key. Нужно для событий, которые могут повторяться очень часто
+    подряд (например: сеть/VPN легли на час — без троттлинга попытки
+    переподключения раз в RECONNECT_DELAY=5 сек залили бы лог тысячами
+    одинаковых строк за это время)."""
+    now = time.time()
+    with _throttle_lock:
+        last = _last_throttled.get(key, 0)
+        if now - last < min_interval:
+            return
+        _last_throttled[key] = now
+    _log(msg)
+
+
+def get_network_log(lines=200):
+    """Последние N строк лога — используется UI (кнопка в настройках)."""
+    try:
+        with open(LOG_PATH, "r", encoding="utf-8") as f:
+            content = f.readlines()
+        return "".join(content[-lines:])
+    except FileNotFoundError:
+        return ""
+    except Exception as e:
+        return f"ошибка чтения лога: {e}"
+
 
 def _settings_path():
     return os.path.join(os.path.dirname(__file__), "..", "settings.json")
@@ -88,6 +136,10 @@ class NetworkManager:
         self._last_offline_at = None     # когда партнёр последний раз вышел (timestamp)
         self._last_session_minutes = 0   # сколько длилась предыдущая сессия онлайна
         self._pending_offline_since = None  # с какого момента подозреваем обрыв (ещё не подтверждён)
+        self._msgs_sent = 0               # сколько сообщений чата ушло в сеть (для лога здоровья)
+        self._msgs_received = 0           # сколько сообщений чата пришло от партнёра
+        self._connect_failures = 0        # подряд неудачных попыток клиента подключиться
+        self._last_health_log = time.time()
 
     def on_partner_update(self, cb): self._on_partner_update.append(cb)
     def on_status_change(self, cb):  self._on_status_change.append(cb)
@@ -137,6 +189,7 @@ class NetworkManager:
                 if not self._connected:
                     self._connected = True
                     self._session_start = time.time()
+                    _log("STATUS: партнёр в сети")
                     for cb in self._on_status_change:
                         try:
                             cb(True)
@@ -156,13 +209,34 @@ class NetworkManager:
                             (self._last_offline_at - self._session_start) / 60
                         )
                     self._session_start = None
+                    _log(f"STATUS: партнёр вышел из сети (сессия длилась {self._last_session_minutes} мин)")
                     for cb in self._on_status_change:
                         try:
                             cb(False)
                         except Exception:
                             pass
 
+            if time.time() - self._last_health_log >= HEALTH_LOG_INTERVAL:
+                self._last_health_log = time.time()
+                self._log_health()
+
             time.sleep(1)
+
+    def _log_health(self):
+        """Периодическая запись в лог, что всё в порядке (или явно не в
+        порядке) — чтобы по логу можно было понять, было ли приложение
+        вообще живо и что оно видело, даже если никто не жаловался."""
+        if self._connected:
+            uptime_min = int((time.time() - self._session_start) / 60) if self._session_start else 0
+            _log(
+                f"HEALTH: всё в порядке — партнёр на связи уже {uptime_min} мин, "
+                f"сообщений отправлено={self._msgs_sent} получено={self._msgs_received}"
+            )
+        else:
+            _log(
+                f"HEALTH: партнёр НЕ на связи, пытаемся переподключиться "
+                f"(неудачных попыток клиента подряд: {self._connect_failures})"
+            )
 
     def get_partner_status(self):
         """
@@ -246,24 +320,33 @@ class NetworkManager:
                 srv.bind(("0.0.0.0", PORT))
                 srv.listen(1)
                 srv.settimeout(2.0)
+                _log(f"SERVER: слушаем входящие подключения на порту {PORT}")
                 while self._running:
                     try:
                         conn, addr = srv.accept()
                         threading.Thread(
-                            target=self._handle_conn, args=(conn,), daemon=True
+                            target=self._handle_conn, args=(conn, addr), daemon=True
                         ).start()
                     except socket.timeout:
                         continue
                 srv.close()
-            except Exception:
+            except Exception as e:
+                _log_throttled(
+                    "server_bind_error",
+                    f"SERVER: не удалось запустить сервер на порту {PORT} — "
+                    f"{type(e).__name__}: {e}"
+                )
                 time.sleep(3)
 
-    def _handle_conn(self, conn):
+    def _handle_conn(self, conn, addr):
         _enable_keepalive(conn)
         conn.settimeout(10.0)
+        peer = addr[0] if addr else "?"
+        _log(f"SERVER: входящее подключение от {peer}")
         send_t = threading.Thread(target=self._send_loop, args=(conn,), daemon=True)
         send_t.start()
-        self._recv_loop(conn)
+        self._recv_loop(conn, label=f"SERVER<-{peer}")
+        _log(f"SERVER: соединение от {peer} закрыто")
 
     # ── Клиент ────────────────────────────────────────────────
     def _run_client(self):
@@ -281,11 +364,22 @@ class NetworkManager:
                 _enable_keepalive(sock)
                 sock.settimeout(10.0)
                 self._client_socket = sock
+                if self._connect_failures:
+                    _log(f"CLIENT: снова подключились к {ip}:{PORT} "
+                         f"(после {self._connect_failures} неудачных попыток)")
+                else:
+                    _log(f"CLIENT: подключились к {ip}:{PORT}")
+                self._connect_failures = 0
                 send_t = threading.Thread(target=self._send_loop, args=(sock,), daemon=True)
                 send_t.start()
-                self._recv_loop(sock)
-            except Exception:
-                pass
+                self._recv_loop(sock, label=f"CLIENT->{ip}")
+            except Exception as e:
+                self._connect_failures += 1
+                _log_throttled(
+                    "client_connect_fail",
+                    f"CLIENT: не удаётся подключиться к {ip}:{PORT} — "
+                    f"{type(e).__name__}: {e} (попыток подряд: {self._connect_failures})"
+                )
             finally:
                 if sock is not None:
                     self._close_client_socket(sock_hint=sock)
@@ -321,7 +415,11 @@ class NetworkManager:
                     (json.dumps(payload_dict, ensure_ascii=False) + "\n").encode()
                 )
             return True
-        except Exception:
+        except Exception as e:
+            _log(
+                f"SEND: ошибка отправки пакета type={payload_dict.get('type', '?')} — "
+                f"{type(e).__name__}: {e} — закрываю сокет"
+            )
             self._close_client_socket(sock_hint=sock)
             return False
 
@@ -332,12 +430,13 @@ class NetworkManager:
                 break
             time.sleep(2)
 
-    def _recv_loop(self, conn):
+    def _recv_loop(self, conn, label="conn"):
         buf = ""
         while self._running:
             try:
                 chunk = conn.recv(4096).decode("utf-8")
                 if not chunk:
+                    _log(f"{label}: партнёр закрыл соединение штатно (пустой пакет)")
                     break
                 buf += chunk
                 while "\n" in buf:
@@ -346,7 +445,11 @@ class NetworkManager:
                         self._process(line.strip())
             except socket.timeout:
                 continue
-            except Exception:
+            except Exception as e:
+                _log_throttled(
+                    f"recv_error:{label}",
+                    f"{label}: ошибка чтения из сокета — {type(e).__name__}: {e}"
+                )
                 break
 
     def _build_payload(self):
@@ -412,11 +515,14 @@ class NetworkManager:
         # и следующее сообщение уже не наступит на те же грабли.
         sock = self._client_socket
         if sock:
+            self._msgs_sent += 1
             threading.Thread(
                 target=self._send_raw, args=(sock, packet), daemon=True
             ).start()
-        # else: партнёр сейчас не на связи — сообщение осталось только
-        # локально, это ожидаемо (видно по статусу подключения в трее/окне).
+        else:
+            # партнёр сейчас не на связи — сообщение осталось только
+            # локально, это ожидаемо (видно по статусу подключения в трее/окне).
+            _log("MSG: партнёр не на связи — сообщение сохранено только локально")
 
     def _process(self, raw):
         try:
@@ -430,8 +536,18 @@ class NetworkManager:
             elif packet_type == "message":
                 self._process_message(data)
 
-        except Exception:
-            pass
+            else:
+                _log_throttled(
+                    "unknown_packet_type",
+                    f"RECV: неизвестный тип пакета: {packet_type!r}"
+                )
+
+        except Exception as e:
+            _log_throttled(
+                "bad_packet",
+                f"RECV: не удалось разобрать пакет ({type(e).__name__}: {e}), "
+                f"raw={raw[:200]!r}"
+            )
 
 
     def _process_activity(self, data):
@@ -448,9 +564,12 @@ class NetworkManager:
 
     def _process_message(self, data):
         self._last_seen = time.time()
+        self._msgs_received += 1
+        text = data.get("text", "")[:1000]
+        _log(f"MSG: получено сообщение от {data.get('sender') or 'Партнёр'} ({len(text)} симв.)")
         self.chat.add_message(
             sender=data.get("sender") or "Партнёр",
-            text=data.get("text", "")[:1000],
+            text=text,
             incoming=True
         )
 

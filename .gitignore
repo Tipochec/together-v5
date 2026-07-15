@@ -28,3 +28,4 @@ venv/
 
 # loging
 ai_debug.log
+network_debug.log

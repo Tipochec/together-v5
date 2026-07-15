@@ -291,6 +291,14 @@ function showAiLog(){
   }).catch(e=>{ el.textContent='ошибка чтения лога: '+e; });
 }
 
+function showNetworkLog(){
+  const el=document.getElementById('network-log-result');
+  el.textContent='читаю лог...';
+  pywebview.api.get_network_log().then(text=>{
+    el.textContent = text && text.length ? text : 'лог пуст — событий пока не было';
+  }).catch(e=>{ el.textContent='ошибка чтения лога: '+e; });
+}
+
 function savePrivate(val){ pywebview.api.save_settings({private_mode:val}); }
 
 function toggleAutostart(){

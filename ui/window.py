@@ -192,6 +192,10 @@ class WindowAPI:
         except Exception as e:
             return f"ошибка чтения лога: {e}"
 
+    def get_network_log(self, lines=80):
+        from core.network import get_network_log as _get_log
+        return _get_log(lines)
+
     def hide_window(self):
         if _window:
             _window.hide()

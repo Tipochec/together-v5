@@ -182,6 +182,11 @@ HTML = r"""
       <div id="ai-log-result" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);
         max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
     </div>
+    <div style="margin-top:10px">
+      <button class="btn" onclick="showNetworkLog()" style="width:100%">🌐 Лог сети</button>
+      <div id="network-log-result" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);
+        max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
+    </div>
   </div>
 </div>
 
