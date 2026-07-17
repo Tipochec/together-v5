@@ -62,14 +62,11 @@ def _log_throttled(key, msg, min_interval=60):
 
 
 def get_network_log(lines=200):
-    """Последние N строк лога, самые свежие — сверху (используется UI,
-    кнопка в настройках)."""
+    """Последние N строк лога — используется UI (кнопка в настройках)."""
     try:
         with open(LOG_PATH, "r", encoding="utf-8") as f:
             content = f.readlines()
-        last_lines = content[-lines:]
-        last_lines.reverse()
-        return "".join(last_lines)
+        return "".join(content[-lines:])
     except FileNotFoundError:
         return ""
     except Exception as e:
@@ -218,32 +215,10 @@ class NetworkManager:
                     self._connected = False
                     self._pending_offline_since = None
                     self._last_offline_at = time.time()
-
-                    # Длительность сессии считаем от РЕАЛЬНОГО момента входа
-                    # партнёра (репортится в её же пакетах как "online_since" —
-                    # это момент запуска ЕЁ приложения, не меняется от
-                    # коротких обрывов сети). Раньше использовался только
-                    # локальный self._session_start, который сбрасывался на
-                    # КАЖДОЕ переподключение — из-за этого при долгой сессии
-                    # с несколькими короткими сетевыми морганиями "сколько
-                    # была на связи" считалось не с честного входа, а с
-                    # последнего локального переподключения (например, вместо
-                    # 12 часов показывало 1-2 часа).
-                    with self._lock:
-                        reported = (self.partner_data or {}).get("online_since")
-                    session_start_ts = None
-                    if reported:
-                        try:
-                            session_start_ts = datetime.fromisoformat(reported).timestamp()
-                        except Exception:
-                            session_start_ts = None
-                    if session_start_ts is None:
-                        session_start_ts = self._session_start
-
-                    if session_start_ts:
-                        self._last_session_minutes = max(0, int(
-                            (self._last_offline_at - session_start_ts) / 60
-                        ))
+                    if self._session_start:
+                        self._last_session_minutes = int(
+                            (self._last_offline_at - self._session_start) / 60
+                        )
                     self._session_start = None
                     _log(f"STATUS: партнёр вышел из сети (сессия длилась {self._last_session_minutes} мин)")
                     for cb in self._on_status_change:
@@ -282,9 +257,6 @@ class NetworkManager:
           перезапуск приложения сбрасывал бы её время входа)
         - оффлайн → с какого времени + сколько длилась прошлая сессия
         """
-        with self._lock:
-            gender = (self.partner_data or {}).get("gender") or "male"
-
         if self._connected:
             since_str = "?"
             with self._lock:
@@ -299,13 +271,12 @@ class NetworkManager:
                 # временно показываем локальную оценку, обновится на
                 # следующем тике, когда придёт её пакет
                 since_str = datetime.fromtimestamp(self._session_start).strftime("%H:%M")
-            return {"online": True, "since": since_str, "gender": gender}
+            return {"online": True, "since": since_str}
         elif self._last_offline_at:
             return {
                 "online": False,
                 "since": datetime.fromtimestamp(self._last_offline_at).strftime("%H:%M"),
                 "last_session_minutes": self._last_session_minutes,
-                "gender": gender,
             }
         return None  # ещё ни разу не было на связи с момента запуска
 

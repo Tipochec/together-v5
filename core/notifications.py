@@ -8,11 +8,8 @@
 интерфейс.
 
 winsound — встроенный модуль Python на Windows, ничего доустанавливать
-не нужно. Звук всегда один — свой файл sound/alarm.wav, без возможности
-подменить его через настройки (раньше был выбор своего .wav / системного
-звука Windows через настройки — убрали по просьбе, звук уведомления
-теперь не настраивается и не "гуляет" между устройствами с разной
-Windows-темой звуков).
+не нужно. Поддерживается свой .wav файл через settings.json
+("custom_sound_path") — если файла нет/не указан — играет системный звук.
 """
 import os
 
@@ -23,7 +20,13 @@ except ImportError:
     # Не-Windows система (например при разработке/тестах) — просто молчим
     _AVAILABLE = False
 
-_SOUND_PATH = os.path.join(os.path.dirname(__file__), "..", "sound", "alarm.wav")
+
+def _settings():
+    try:
+        from core.tracker import load_settings
+        return load_settings()
+    except Exception:
+        return {}
 
 
 def play_chat_sound():
@@ -31,17 +34,21 @@ def play_chat_sound():
     if not _AVAILABLE:
         return
 
-    if os.path.isfile(_SOUND_PATH):
-        try:
-            winsound.PlaySound(_SOUND_PATH, winsound.SND_FILENAME | winsound.SND_ASYNC)
-            return
-        except Exception:
-            pass  # если файл почему-то не проигрался — падаем на системный звук ниже
+    custom_path = _settings().get("custom_sound_path", "").strip()
+    if custom_path and custom_path.lower().endswith(".wav"):
+        if not os.path.isabs(custom_path):
+            project_root = os.path.join(os.path.dirname(__file__), "..")
+            custom_path = os.path.join(project_root, custom_path)
+        if os.path.isfile(custom_path):
+            try:
+                winsound.PlaySound(custom_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                return
+            except Exception:
+                pass  # если свой файл не проигрался — падаем на системный звук ниже
 
     try:
-        # Подстраховка на случай, если sound/alarm.wav вдруг отсутствует
-        # (например, случайно не попал в сборку .exe) — звук уведомления
-        # молчать не должен, лучше стандартный "динь" Windows, чем ничего.
+        # SystemAsterisk — стандартный "динь" звук уведомления Windows,
+        # настраивается пользователем в Панели управления → Звуки
         winsound.PlaySound(
             "SystemAsterisk",
             winsound.SND_ALIAS | winsound.SND_ASYNC | winsound.SND_NODEFAULT,

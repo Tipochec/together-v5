@@ -136,10 +136,10 @@ HTML = r"""
     </div>
     <div class="settings-row">
       <span class="settings-label">
-        🌍 OpenRouter API ключ <span style="color:rgba(255,255,255,0.25)">(необязательно)</span>
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">нужен только для авто-определения категории новых программ (openrouter.ai) — без ключа приложение работает как обычно, неизвестные программы попадут в категорию «другое»</div>
+        🌍 OpenRouter API ключ
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">для авто-категорий новых программ (openrouter.ai)</div>
       </span>
-      <input class="si" id="inp-openrouter-key" placeholder="sk-or-... (необязательно)" type="password"/>
+      <input class="si" id="inp-openrouter-key" placeholder="sk-or-..." type="password"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">
@@ -150,11 +150,18 @@ HTML = r"""
     </div>
     <div class="settings-row">
       <span class="settings-label">
+        🔔 Свой звук уведомления
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">полный путь к .wav файлу, пусто = стандартный звук Windows</div>
+      </span>
+      <input class="si" id="inp-custom-sound" placeholder="C:\Users\...\notify.wav"/>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">
         🕵️ Приватный режим
         <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">скрывает вкладку браузера</div>
       </span>
       <label class="toggle">
-        <input type="checkbox" id="tog-private"/>
+        <input type="checkbox" id="tog-private" onchange="savePrivate(this.checked)"/>
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -172,7 +179,12 @@ HTML = r"""
         max-height:200px;overflow-y:auto"></div>
     </div>
     <div style="margin-top:10px">
-      <button class="btn" onclick="showNetworkLog()" style="width:100%">🌐 Лог сети (последние 20 строк)</button>
+      <button class="btn" onclick="showAiLog()" style="width:100%">🤖 Лог запросов к AI</button>
+      <div id="ai-log-result" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);
+        max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn" onclick="showNetworkLog()" style="width:100%">🌐 Лог сети</button>
       <div id="network-log-result" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);
         max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
     </div>

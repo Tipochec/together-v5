@@ -15,73 +15,23 @@ async function loadChat() {
             ? "message partner"
             : "message me";
 
-        if (msg.incoming) {
-            const sender = document.createElement("div");
-            sender.className = "sender";
-            sender.textContent = msg.sender || "Партнёр";
-            div.appendChild(sender);
-        }
-
-        const body = document.createElement("div");
-        body.className = "msg-text";
-        body.textContent = msg.text;
-        div.appendChild(body);
-
         const time = new Date(msg.time);
-        const timeEl = document.createElement("div");
-        timeEl.className = "time";
-        timeEl.textContent = time.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-        });
-        div.appendChild(timeEl);
 
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "msg-copy";
-        copyBtn.title = "Скопировать сообщение";
-        copyBtn.textContent = "📋";
-        copyBtn.onclick = (e) => {
-            e.stopPropagation();
-            copyMessageText(msg.text, copyBtn);
-        };
-        div.appendChild(copyBtn);
+        div.innerHTML = `
+            ${msg.incoming ? `<div class="sender">${msg.sender || "Партнёр"}</div>` : ""}
+            <div>${msg.text}</div>
+            <div class="time">
+                ${time.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                })}
+            </div>
+        `;
 
         chat.appendChild(div);
     }
 
     chat.scrollTop = chat.scrollHeight;
-}
-
-// Копирование текста сообщения в буфер обмена — по клику на 📋,
-// которая появляется при наведении на сообщение (см. .msg-copy в CSS).
-function copyMessageText(text, btn) {
-    const showCopied = () => {
-        if (!btn) return;
-        const original = btn.textContent;
-        btn.textContent = "✓";
-        setTimeout(() => { btn.textContent = original; }, 1200);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(showCopied).catch(() => _fallbackCopy(text, showCopied));
-    } else {
-        _fallbackCopy(text, showCopied);
-    }
-}
-
-function _fallbackCopy(text, cb) {
-    try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        if (cb) cb();
-    } catch (e) {
-        console.error("copy failed:", e);
-    }
 }
 
 async function sendMessage() {

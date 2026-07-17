@@ -20,7 +20,6 @@ body{
     justify-content:space-between;
     padding:0 14px;
     border-bottom:.5px solid rgba(255,255,255,.06);
-    -webkit-app-region:drag;
 }
 
 .title{
@@ -36,7 +35,6 @@ body{
     background:transparent;
     color:rgba(255,255,255,.4);
     cursor:pointer;
-    -webkit-app-region:no-drag;
 }
 
 .close:hover{
@@ -136,44 +134,11 @@ body{
 
 .message{
     max-width:75%;
-    padding:10px 30px 10px 14px;
+    padding:10px 14px;
     border-radius:14px;
     margin-bottom:8px;
     word-break:break-word;
     font-size:13px;
-    position:relative;
-}
-
-.msg-text{
-    white-space:pre-wrap;
-    user-select:text;
-}
-
-.msg-copy{
-    position:absolute;
-    top:6px;
-    right:6px;
-    width:20px;
-    height:20px;
-    border:none;
-    border-radius:5px;
-    background:rgba(0,0,0,0.25);
-    color:rgba(255,255,255,0.75);
-    font-size:11px;
-    line-height:1;
-    cursor:pointer;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding:0;
-    -webkit-app-region:no-drag;
-}
-.message:hover .msg-copy{
-    display:flex;
-}
-.msg-copy:hover{
-    background:rgba(0,0,0,0.4);
-    color:#fff;
 }
 
 .sender{
