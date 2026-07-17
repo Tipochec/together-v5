@@ -25,10 +25,10 @@ _quitting = False  # True только когда реально выходим 
 class WindowAPI:
     def get_state(self):
         from core.tracker import load_settings
-        s         = load_settings()
-        current   = _tracker.get_current()
-        history   = _tracker.get_history()
-        partner   = _network.get_partner_data() if _network else None
+        s = load_settings()
+        current = _tracker.get_current()
+        history = _tracker.get_history()
+        partner = _network.get_partner_data() if _network else None
         connected = _network.is_connected()     if _network else False
 
         # Раньше тут всегда показывалось имя, которое партнёр вписал СЕБЕ
@@ -189,18 +189,7 @@ class WindowAPI:
             return []
         return _stats.debug_scan()
 
-    def get_ai_log(self, lines=40):
-        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ai_debug.log")
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.readlines()
-            return "".join(content[-lines:])
-        except FileNotFoundError:
-            return ""
-        except Exception as e:
-            return f"ошибка чтения лога: {e}"
-
-    def get_network_log(self, lines=80):
+    def get_network_log(self, lines=20):
         from core.network import get_network_log as _get_log
         return _get_log(lines)
 
@@ -302,7 +291,7 @@ def open_chat_window():
         height=580,
         resizable=False,
         frameless=True,
-        easy_drag=True,
+        easy_drag=False,
         background_color="#0f0f13",
     )
 
@@ -332,7 +321,7 @@ def run_webview_loop(tracker, network, stats=None):
         height=600,
         resizable=False,
         frameless=True,
-        easy_drag=True,
+        easy_drag=False,
         background_color="#0f0f13",
         hidden=True,
     )

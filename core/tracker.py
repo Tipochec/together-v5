@@ -22,6 +22,25 @@ from core.app_maps import APP_NAMES, BROWSER_PROCESSES, CATEGORIES
 AFK_TIMEOUT = 600   # 10 минут без ввода клавы/мыши → AFK
 
 
+class LASTINPUTINFO(ctypes.Structure):
+    """
+    Win32-структура для GetLastInputInfo — НЕ входит в стандартный
+    ctypes.wintypes (там её никогда и не было), а код раньше обращался
+    к ctypes.wintypes.LASTINPUTINFO(), которого просто не существует.
+    Это падало с AttributeError на КАЖДОМ вызове _get_idle_seconds(),
+    исключение молча ловилось и возвращался 0 — то есть idle всегда
+    считался нулевым, и статус всегда был "active", даже если человек
+    час не трогал клавиатуру/мышь. Отсюда и "был AFK час, а показало
+    100% активности". Объявляем структуру руками — она полностью
+    описана в MSDN: cbSize (размер структуры) + dwTime (тик последнего
+    ввода в миллисекундах, тот же счётчик, что у GetTickCount).
+    """
+    _fields_ = [
+        ("cbSize", ctypes.c_uint),
+        ("dwTime", ctypes.c_uint),
+    ]
+
+
 def _settings_path():
     return os.path.join(os.path.dirname(__file__), "..", "settings.json")
 
@@ -276,10 +295,18 @@ class ActivityTracker:
 
     def _get_idle_seconds(self):
         try:
-            li = ctypes.wintypes.LASTINPUTINFO()
-            li.cbSize = ctypes.sizeof(li)
-            user32.GetLastInputInfo(ctypes.byref(li))
-            return (kernel32.GetTickCount() - li.dwTime) / 1000.0
+            li = LASTINPUTINFO()
+            li.cbSize = ctypes.sizeof(LASTINPUTINFO)
+            if not user32.GetLastInputInfo(ctypes.byref(li)):
+                return 0
+            millis = kernel32.GetTickCount() - li.dwTime
+            if millis < 0:
+                # GetTickCount — 32-битный счётчик миллисекунд с момента
+                # старта Windows, переполняется примерно раз в 49.7 дня —
+                # без этой поправки в момент переполнения idle_secs на
+                # мгновение уходил в минус и ломал сравнение с AFK_TIMEOUT
+                millis += 2**32
+            return millis / 1000.0
         except Exception:
             return 0
 
