@@ -520,7 +520,16 @@ class NetworkManager:
         history = self.tracker.get_history()[:10]
         return {
             "type": "activity",
-            "pairing_key": s.get("pairing_key") or "",
+            # .strip() тут обязателен и должен совпадать с тем, как ключ
+            # сравнивается на приёме (см. _process): там `expected_key`
+            # берётся через .strip(). Если тут отправлять ключ "как есть",
+            # а лишний пробел/перенос строки закрался в settings.json
+            # (типичный случай — скопировали ключ откуда-то с хвостовым
+            # пробелом), то ИМЕННО пакеты этой стороны будут молча
+            # отклоняться другой стороной навсегда, а обратное направление
+            # при этом продолжит работать — получается однонаправленный
+            # обрыв чата, который выглядит как "у меня доходит, у неё нет".
+            "pairing_key": (s.get("pairing_key") or "").strip(),
             "name": s.get("name") or "Партнёр",
             "gender": s.get("gender") or "male",
             "avatar": s.get("avatar") or "",
@@ -556,8 +565,16 @@ class NetworkManager:
 
         packet = {
             "type": "message",
-            "pairing_key": settings.get("pairing_key") or "",
-            "sender": settings.get("name") or "Я",
+            "pairing_key": (settings.get("pairing_key") or "").strip(),
+            # Раньше тут стояло `or "Я"` — если у партнёра не заполнено имя
+            # в настройках, в сеть уходил буквальный текст "Я" как имя
+            # отправителя. Через сокет он долетал до тебя как есть и
+            # показывался в чате как "Я" — то есть её реальные сообщения
+            # приходили, просто подписывались так, что их легко спутать
+            # со своими же. Отправляем пустую строку — на приёме уже есть
+            # штатный fallback на "Партнёр" (см. _process_message ниже и
+            # chat_script.py), он и сработает как надо.
+            "sender": settings.get("name") or "",
             "text": text[:1000],
             "time": datetime.now().isoformat()
         }
@@ -604,10 +621,15 @@ class NetworkManager:
             # сломать уже работающую пару без ключа.
             expected_key = (load_settings().get("pairing_key") or "").strip()
             if expected_key and data.get("pairing_key") != expected_key:
+                got_key = data.get("pairing_key") or ""
                 _log_throttled(
                     "pairing_key_mismatch",
                     "RECV: пакет с неверным pairing_key — отклонён "
-                    "(похоже, кто-то посторонний стучится на порт)"
+                    "(похоже, кто-то посторонний стучится на порт; "
+                    f"наш ключ: {len(expected_key)} симв., в пакете: "
+                    f"{len(got_key)} симв. — если длины близки, но не "
+                    "совпали, проверьте лишние пробелы в поле ключа "
+                    "у обеих сторон)"
                 )
                 return
 

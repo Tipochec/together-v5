@@ -91,6 +91,13 @@ class WindowAPI:
     def save_settings(self, data):
         from core.tracker import load_settings, _settings_path
         try:
+            # Ключ подключения часто копируют/вставляют откуда-то (из
+            # сообщения, заметки) — если туда случайно затесался пробел
+            # или перенос строки, он ломает сверку pairing_key на приёме
+            # у партнёра (см. core/network.py). Чистим прямо при
+            # сохранении, чтобы в settings.json всегда лежал чистый ключ.
+            if "pairing_key" in data and isinstance(data["pairing_key"], str):
+                data["pairing_key"] = data["pairing_key"].strip()
             current = load_settings()
             current.update(data)
             with open(_settings_path(), "w", encoding="utf-8") as f:
