@@ -39,28 +39,22 @@ class TrayApp:
         self._icon.run()
 
     def _build_menu(self):
-        connected = self.network.is_connected() if self.network else False
-        conn_text = "🟢 Партнёр онлайн" if connected else "🔴 Ожидание партнёра"
+        # Раньше сюда добавлялись ещё две строки с текущим приложением и
+        # статусом партнёра (enabled=False, клик по ним ничего не делал) —
+        # это дублировало подсказку при наведении на иконку и только
+        # засоряло меню. Убраны; актуальный статус по-прежнему виден в
+        # title иконки при наведении, его обновляет _on_activity_change.
         return pystray.Menu(
             item("💑 Открыть Together", self._open_window, default=True),
-            pystray.Menu.SEPARATOR,
-            item(self._get_status_text, lambda: None, enabled=False),
-            item(conn_text, lambda: None, enabled=False),
             pystray.Menu.SEPARATOR,
             item("❌ Закрыть", self._quit),
         )
 
-    def _get_status_text(self, icon=None, item=None):
-        current = self.tracker.get_current()
-        if current.get("afk"):
-            return "😴 AFK"
-        return f"▶ {current.get('app', '—')}"
-
     def _on_activity_change(self, activity):
         if self._icon:
-            app = activity.get("app", "—")
-            status = "AFK" if activity.get("afk") else app
-            self._icon.title = f"Together — {status}"
+            # Раньше title менялся на "Together — <статус>" при каждой
+            # смене активности — по просьбе оставляем просто "Together"
+            # в подсказке трея, статус там больше не отображается.
             self._icon.menu = self._build_menu()
 
     def _on_connection_change(self, connected):

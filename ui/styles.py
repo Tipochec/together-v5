@@ -140,6 +140,19 @@ CSS = r"""
   .help-icon:hover .help-tooltip,.help-icon:focus .help-tooltip{
     opacity:1;transform:translateY(0);pointer-events:auto;
   }
+  /* Первая подсказка (у аватарки) стоит в самом верху вкладки настроек —
+     всплывающая карточка, открываясь вверх, вылезала под верхнюю панель
+     (.titlebar) и обрезалась её фоном. Для неё открываем вниз. */
+  .help-icon-down .help-tooltip{
+    bottom:auto;top:calc(100% + 9px);transform:translateY(-4px);
+  }
+  .help-icon-down:hover .help-tooltip,.help-icon-down:focus .help-tooltip{
+    transform:translateY(0);
+  }
+  .help-icon-down .help-tooltip::after{
+    top:auto;bottom:100%;
+    border-top-color:transparent;border-bottom-color:#1e1c26;
+  }
   .nav{display:flex;gap:4px;margin-bottom:16px}
   .nav-btn{flex:1;padding:6px;border-radius:8px;border:none;background:transparent;
     color:rgba(255,255,255,0.3);cursor:pointer;font-size:12px;transition:all .15s}

@@ -97,7 +97,7 @@ HTML = r"""
     <div class="settings-row">
       <span class="settings-label">
         Моя аватарка
-        <span class="help-icon" tabindex="0">?
+        <span class="help-icon help-icon-down" tabindex="0">?
           <span class="help-tooltip">Квадратная фотка, которая видна партнёру и тебе на карточке. <b>JPG/PNG</b>, любой размер — само обрежется по центру в квадрат.</span>
         </span>
       </span>

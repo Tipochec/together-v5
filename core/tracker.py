@@ -16,6 +16,36 @@ from collections import deque
 
 user32   = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
+psapi    = ctypes.windll.psapi
+
+# Явно задаём restype/argtypes для функций, которые возвращают/принимают
+# HWND и хендлы. Без этого ctypes по умолчанию трактует возврат как
+# 32-битный c_int и на 64-битном Python может обрезать/криво прочитать
+# значение хендла — из-за этого GetForegroundWindow() (и всё, что от
+# него зависит: заголовок окна, PID, имя процесса) время от времени
+# читалось неверно, try/except ниже это молча проглатывал и подставлял
+# запасной вариант "Рабочий стол" — отсюда и трей, который вечно
+# показывал "Together — Рабочий стол" независимо от реального активного
+# окна.
+user32.GetForegroundWindow.restype = ctypes.wintypes.HWND
+user32.GetForegroundWindow.argtypes = []
+user32.GetWindowTextLengthW.restype = ctypes.c_int
+user32.GetWindowTextLengthW.argtypes = [ctypes.wintypes.HWND]
+user32.GetWindowTextW.restype = ctypes.c_int
+user32.GetWindowTextW.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.LPWSTR, ctypes.c_int]
+user32.GetWindowThreadProcessId.restype = ctypes.wintypes.DWORD
+user32.GetWindowThreadProcessId.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(ctypes.wintypes.DWORD)]
+kernel32.OpenProcess.restype = ctypes.wintypes.HANDLE
+kernel32.OpenProcess.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.BOOL, ctypes.wintypes.DWORD]
+kernel32.CloseHandle.restype = ctypes.wintypes.BOOL
+kernel32.CloseHandle.argtypes = [ctypes.wintypes.HANDLE]
+psapi.GetModuleFileNameExW.restype = ctypes.wintypes.DWORD
+psapi.GetModuleFileNameExW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.HMODULE,
+                                        ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
+kernel32.GetTickCount.restype = ctypes.wintypes.DWORD
+kernel32.GetTickCount.argtypes = []
+user32.GetLastInputInfo.restype = ctypes.wintypes.BOOL
+user32.GetLastInputInfo.argtypes = [ctypes.c_void_p]
 
 from core.app_maps import APP_NAMES, BROWSER_PROCESSES, CATEGORIES
 from core.paths import data_path
@@ -330,7 +360,12 @@ class ActivityTracker:
             app_name  = APP_NAMES.get(proc_name.lower(), self._clean_process_name(proc_name))
             clean_title = self._clean_title(title, app_name)
             return proc_name, app_name, clean_title
-        except Exception:
+        except Exception as e:
+            # Раньше здесь была тихая заглушка без единого следа — если
+            # (несмотря на фикс restype/argtypes выше) сюда всё же дойдёт
+            # реальная ошибка, теперь она попадёт в ai_debug.log вместо
+            # того чтобы бесследно превращаться в вечный "Рабочий стол".
+            self._log_checkpoint(f"_get_active_window ОШИБКА: {e!r}")
             return "explorer.exe", "Рабочий стол", ""
 
     def _get_process_name(self, pid):
