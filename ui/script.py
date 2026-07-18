@@ -275,9 +275,9 @@ function removeAvatar(){
 const SETTINGS_FIELDS = {
   name:                   'inp-name',
   gender:                 'inp-gender',
-  partner_name:           'inp-partner-name',
   ip:                     'inp-ip',
   openrouter_api_key:     'inp-openrouter-key',
+  pairing_key:            'inp-pairing-key',
   extra_ignore_processes: 'inp-extra-ignore',
   my_ip_override:         'inp-my-ip',
   private_mode:           'tog-private',
@@ -317,9 +317,9 @@ function loadSettings(){
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
     document.getElementById('inp-gender').value=s.gender||'male';
-    document.getElementById('inp-partner-name').value=s.partner_name||'';
     document.getElementById('inp-ip').value=s.ip||'';
     document.getElementById('inp-openrouter-key').value=s.openrouter_api_key||'';
+    document.getElementById('inp-pairing-key').value=s.pairing_key||'';
     document.getElementById('inp-extra-ignore').value=(s.extra_ignore_processes||[]).join(', ');
     document.getElementById('inp-my-ip').value=s.my_ip||'';
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
@@ -342,9 +342,9 @@ function saveSettings(){
   pywebview.api.save_settings({
     name:document.getElementById('inp-name').value,
     gender:document.getElementById('inp-gender').value,
-    partner_name:document.getElementById('inp-partner-name').value,
     ip:document.getElementById('inp-ip').value,
     openrouter_api_key:document.getElementById('inp-openrouter-key').value,
+    pairing_key:document.getElementById('inp-pairing-key').value,
     extra_ignore_processes:extraIgnore,
     my_ip_override:document.getElementById('inp-my-ip').value,
     private_mode:document.getElementById('tog-private').checked,

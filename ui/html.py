@@ -97,7 +97,9 @@ HTML = r"""
     <div class="settings-row">
       <span class="settings-label">
         Моя аватарка
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">JPG/PNG — само обрежется в квадрат</div>
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Квадратная фотка, которая видна партнёру и тебе на карточке. <b>JPG/PNG</b>, любой размер — само обрежется по центру в квадрат.</span>
+        </span>
       </span>
       <div style="display:flex;align-items:center;gap:8px">
         <div class="avatar gender-male" id="settings-avatar-preview" style="width:40px;height:40px;margin-bottom:0">Я</div>
@@ -112,7 +114,9 @@ HTML = r"""
     <div class="settings-row">
       <span class="settings-label">
         Мой пол
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">определяет цвет твоей карточки на обоих экранах</div>
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Только влияет на <b>цвет твоей карточки</b> — у себя и у партнёра. На работу приложения не влияет.</span>
+        </span>
       </span>
       <select class="si" id="inp-gender">
         <option value="male">Мужской</option>
@@ -120,38 +124,56 @@ HTML = r"""
       </select>
     </div>
     <div class="settings-row">
-      <span class="settings-label">Имя партнёра</span>
-      <input class="si" id="inp-partner-name" placeholder="Её имя"/>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">IP партнёра (Zerotier)</span>
+      <span class="settings-label">
+        IP партнёра (Zerotier)
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Адрес партнёра в вашей общей <b>Zerotier</b>-сети (или другой VPN, где вы оба состоите). По нему приложение подключается к партнёру напрямую. Без этого поля чат и статус «онлайн» работать не будут.</span>
+        </span>
+      </span>
       <input class="si" id="inp-ip" placeholder="10.147.X.X"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">
         Мой Zerotier IP
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">определяется автоматически, но можно поправить руками</div>
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Определяется <b>автоматически</b> — это твой адрес в общей VPN-сети, его вписывает партнёр себе в поле выше. Трогать нужно, только если автоопределение ошиблось.</span>
+        </span>
       </span>
       <input class="si" id="inp-my-ip" placeholder="10.147.X.X"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">
+        🔒 Ключ подключения
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Общий «пароль» между вашими приложениями. Без него порт связи открыт для любого в вашей сети. Придумай любую строку и впиши <b>одинаковую</b> себе и партнёру — иначе чужие пакеты будут просто отклоняться.</span>
+        </span>
+      </span>
+      <input class="si" id="inp-pairing-key" placeholder="общий секрет" type="password"/>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">
         🌍 OpenRouter API ключ <span style="color:rgba(255,255,255,0.25)">(необязательно)</span>
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">нужен только для авто-определения категории новых программ (openrouter.ai) — без ключа приложение работает как обычно, неизвестные программы попадут в категорию «другое»</div>
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Нужен только для <b>авто-определения категории</b> новых программ (через openrouter.ai). Без ключа приложение работает как обычно — неизвестные программы попадут в категорию «другое».</span>
+        </span>
       </span>
       <input class="si" id="inp-openrouter-key" placeholder="sk-or-... (необязательно)" type="password"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">
         🚫 Игнорировать процессы
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">через запятую, например: rvrvpnfui.exe, someapp.exe</div>
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Программы, которые <b>не нужно</b> учитывать в статистике и активности. Через запятую, например: <b>rvrvpnfui.exe, someapp.exe</b></span>
+        </span>
       </span>
       <input class="si" id="inp-extra-ignore" placeholder="proc1.exe, proc2.exe"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">
         🕵️ Приватный режим
-        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">скрывает вкладку браузера</div>
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Скрывает вкладку с историей браузера — на случай, если за компом кто-то ещё.</span>
+        </span>
       </span>
       <label class="toggle">
         <input type="checkbox" id="tog-private"/>

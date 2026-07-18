@@ -41,15 +41,6 @@ class WindowAPI:
         partner = _network.get_partner_data() if _network else None
         connected = _network.is_connected()     if _network else False
 
-        # Раньше тут всегда показывалось имя, которое партнёр вписал СЕБЕ
-        # в настройки (оно и правда передаётся по сети в пакете активности) —
-        # а локальное поле "Имя партнёра" сохранялось в settings.json, но
-        # нигде не использовалось при отображении. Теперь если ты вписал
-        # своё название для партнёра — оно в приоритете.
-        if partner and s.get("partner_name"):
-            partner = dict(partner)
-            partner["name"] = s.get("partner_name")
-
         def fmt(items, who):
             return [{
                 "app":   h.get("app","—"),
@@ -225,19 +216,6 @@ class WindowAPI:
         if not _network:
             return []
         history = _network.get_chat_history()
-
-        # Тот же баг, что был на карточке партнёра — sender у входящих
-        # сообщений это имя, которое партнёр указал СЕБЕ в настройках
-        # (пришло по сети), а не локальное поле "Имя партнёра". Применяем
-        # тот же override и здесь.
-        from core.tracker import load_settings
-        s = load_settings()
-        partner_name = s.get("partner_name")
-        if partner_name:
-            for msg in history:
-                if msg.get("incoming"):
-                    msg["sender"] = partner_name
-
         return history
 
     def clear_chat(self):
@@ -327,7 +305,7 @@ def run_webview_loop(tracker, network, stats=None):
         title="Together",
         html=HTML,
         js_api=api,
-        width=480,
+        width=520,
         height=600,
         resizable=False,
         frameless=True,

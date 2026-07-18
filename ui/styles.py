@@ -110,6 +110,36 @@ CSS = r"""
   .btn-primary:hover{background:rgba(83,74,183,0.3)}
   .btn-danger{border-color:rgba(212,83,126,0.3);color:#d4537e}
   .btn-danger:hover{background:rgba(212,83,126,0.1)}
+
+  /* "?" подсказка рядом с меткой поля настроек — вместо серой строки
+     под названием. Наводишь/фокусишься на кружок — всплывает карточка
+     с подробным описанием, зачем поле нужно и что в него вписывать. */
+  .help-icon{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:14px;height:14px;border-radius:50%;flex-shrink:0;
+    background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);
+    font-size:10px;font-weight:700;margin-left:6px;cursor:help;
+    position:relative;vertical-align:middle;
+    transition:background .15s,color .15s;
+  }
+  .help-icon:hover,.help-icon:focus{background:rgba(83,74,183,0.35);color:#a89ef0;outline:none}
+  .help-tooltip{
+    position:absolute;left:-6px;bottom:calc(100% + 9px);
+    width:212px;background:#1e1c26;border:0.5px solid rgba(255,255,255,0.12);
+    border-radius:9px;padding:10px 12px;font-size:11px;font-weight:400;
+    color:rgba(255,255,255,0.65);line-height:1.55;white-space:normal;
+    box-shadow:0 10px 28px rgba(0,0,0,0.45);
+    opacity:0;transform:translateY(4px);pointer-events:none;
+    transition:opacity .15s ease,transform .15s ease;z-index:30;
+  }
+  .help-tooltip b{color:rgba(255,255,255,0.9)}
+  .help-tooltip::after{
+    content:'';position:absolute;top:100%;left:12px;
+    border:5px solid transparent;border-top-color:#1e1c26;
+  }
+  .help-icon:hover .help-tooltip,.help-icon:focus .help-tooltip{
+    opacity:1;transform:translateY(0);pointer-events:auto;
+  }
   .nav{display:flex;gap:4px;margin-bottom:16px}
   .nav-btn{flex:1;padding:6px;border-radius:8px;border:none;background:transparent;
     color:rgba(255,255,255,0.3);cursor:pointer;font-size:12px;transition:all .15s}
