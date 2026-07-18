@@ -3,6 +3,7 @@
 """
 import json, threading, time, socket, os
 from .chat import ChatManager
+from core.paths import data_path
 from datetime import datetime
 
 PORT = 39721
@@ -13,7 +14,7 @@ RECONNECT_GRACE = 30    # ещё столько секунд ждём подтв
                          # обычных сетевых морганий VPN — не создаём фантомные
                          # "перезаходы" в статусе/логе из-за секундного обрыва)
 
-LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "network_debug.log")
+LOG_PATH = data_path("network_debug.log")
 HEALTH_LOG_INTERVAL = 300  # раз в 5 минут пишем в лог "всё ок" / текущий статус
 
 _log_lock = threading.Lock()
@@ -62,11 +63,14 @@ def _log_throttled(key, msg, min_interval=60):
 
 
 def get_network_log(lines=200):
-    """Последние N строк лога — используется UI (кнопка в настройках)."""
+    """Последние N строк лога, самые свежие — сверху (используется UI,
+    кнопка в настройках)."""
     try:
         with open(LOG_PATH, "r", encoding="utf-8") as f:
             content = f.readlines()
-        return "".join(content[-lines:])
+        last_lines = content[-lines:]
+        last_lines.reverse()
+        return "".join(last_lines)
     except FileNotFoundError:
         return ""
     except Exception as e:
@@ -74,7 +78,7 @@ def get_network_log(lines=200):
 
 
 def _settings_path():
-    return os.path.join(os.path.dirname(__file__), "..", "settings.json")
+    return data_path("settings.json")
 
 
 def load_settings():
@@ -215,10 +219,32 @@ class NetworkManager:
                     self._connected = False
                     self._pending_offline_since = None
                     self._last_offline_at = time.time()
-                    if self._session_start:
-                        self._last_session_minutes = int(
-                            (self._last_offline_at - self._session_start) / 60
-                        )
+
+                    # Длительность сессии считаем от РЕАЛЬНОГО момента входа
+                    # партнёра (репортится в её же пакетах как "online_since" —
+                    # это момент запуска ЕЁ приложения, не меняется от
+                    # коротких обрывов сети). Раньше использовался только
+                    # локальный self._session_start, который сбрасывался на
+                    # КАЖДОЕ переподключение — из-за этого при долгой сессии
+                    # с несколькими короткими сетевыми морганиями "сколько
+                    # была на связи" считалось не с честного входа, а с
+                    # последнего локального переподключения (например, вместо
+                    # 12 часов показывало 1-2 часа).
+                    with self._lock:
+                        reported = (self.partner_data or {}).get("online_since")
+                    session_start_ts = None
+                    if reported:
+                        try:
+                            session_start_ts = datetime.fromisoformat(reported).timestamp()
+                        except Exception:
+                            session_start_ts = None
+                    if session_start_ts is None:
+                        session_start_ts = self._session_start
+
+                    if session_start_ts:
+                        self._last_session_minutes = max(0, int(
+                            (self._last_offline_at - session_start_ts) / 60
+                        ))
                     self._session_start = None
                     _log(f"STATUS: партнёр вышел из сети (сессия длилась {self._last_session_minutes} мин)")
                     for cb in self._on_status_change:
@@ -257,6 +283,9 @@ class NetworkManager:
           перезапуск приложения сбрасывал бы её время входа)
         - оффлайн → с какого времени + сколько длилась прошлая сессия
         """
+        with self._lock:
+            gender = (self.partner_data or {}).get("gender") or "male"
+
         if self._connected:
             since_str = "?"
             with self._lock:
@@ -271,12 +300,13 @@ class NetworkManager:
                 # временно показываем локальную оценку, обновится на
                 # следующем тике, когда придёт её пакет
                 since_str = datetime.fromtimestamp(self._session_start).strftime("%H:%M")
-            return {"online": True, "since": since_str}
+            return {"online": True, "since": since_str, "gender": gender}
         elif self._last_offline_at:
             return {
                 "online": False,
                 "since": datetime.fromtimestamp(self._last_offline_at).strftime("%H:%M"),
                 "last_session_minutes": self._last_session_minutes,
+                "gender": gender,
             }
         return None  # ещё ни разу не было на связи с момента запуска
 
@@ -490,6 +520,7 @@ class NetworkManager:
         history = self.tracker.get_history()[:10]
         return {
             "type": "activity",
+            "pairing_key": s.get("pairing_key") or "",
             "name": s.get("name") or "Партнёр",
             "gender": s.get("gender") or "male",
             "avatar": s.get("avatar") or "",
@@ -525,6 +556,7 @@ class NetworkManager:
 
         packet = {
             "type": "message",
+            "pairing_key": settings.get("pairing_key") or "",
             "sender": settings.get("name") or "Я",
             "text": text[:1000],
             "time": datetime.now().isoformat()
@@ -559,6 +591,25 @@ class NetworkManager:
     def _process(self, raw):
         try:
             data = json.loads(raw)
+
+            # Защита от посторонних в той же сети: порт 39721 слушает
+            # 0.0.0.0 без TLS и без пароля, так что раньше ЛЮБОЙ, кто
+            # подключился к этому порту (тот же Wi-Fi в кафе/общаге/
+            # офисе), мог прислать поддельный "activity"/"message"
+            # пакет и притвориться партнёром. Если в settings.json
+            # задан pairing_key — оба приложения должны знать одну и
+            # ту же строку, иначе пакет отбрасывается сразу, ещё до
+            # того как его данные попадут в интерфейс. Если ключ не
+            # задан (пусто) — старое поведение сохраняется, чтобы не
+            # сломать уже работающую пару без ключа.
+            expected_key = (load_settings().get("pairing_key") or "").strip()
+            if expected_key and data.get("pairing_key") != expected_key:
+                _log_throttled(
+                    "pairing_key_mismatch",
+                    "RECV: пакет с неверным pairing_key — отклонён "
+                    "(похоже, кто-то посторонний стучится на порт)"
+                )
+                return
 
             packet_type = data.get("type")
 

@@ -18,12 +18,32 @@ user32   = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
 from core.app_maps import APP_NAMES, BROWSER_PROCESSES, CATEGORIES
+from core.paths import data_path
 
 AFK_TIMEOUT = 600   # 10 минут без ввода клавы/мыши → AFK
 
 
+class LASTINPUTINFO(ctypes.Structure):
+    """
+    Win32-структура для GetLastInputInfo — НЕ входит в стандартный
+    ctypes.wintypes (там её никогда и не было), а код раньше обращался
+    к ctypes.wintypes.LASTINPUTINFO(), которого просто не существует.
+    Это падало с AttributeError на КАЖДОМ вызове _get_idle_seconds(),
+    исключение молча ловилось и возвращался 0 — то есть idle всегда
+    считался нулевым, и статус всегда был "active", даже если человек
+    час не трогал клавиатуру/мышь. Отсюда и "был AFK час, а показало
+    100% активности". Объявляем структуру руками — она полностью
+    описана в MSDN: cbSize (размер структуры) + dwTime (тик последнего
+    ввода в миллисекундах, тот же счётчик, что у GetTickCount).
+    """
+    _fields_ = [
+        ("cbSize", ctypes.c_uint),
+        ("dwTime", ctypes.c_uint),
+    ]
+
+
 def _settings_path():
-    return os.path.join(os.path.dirname(__file__), "..", "settings.json")
+    return data_path("settings.json")
 
 
 def load_settings():
@@ -160,7 +180,7 @@ class ActivityTracker:
 
     def _log_checkpoint(self, msg):
         try:
-            log_path = os.path.join(os.path.dirname(__file__), "..", "ai_debug.log")
+            log_path = data_path("ai_debug.log")
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SESSION_CHECKPOINT: {msg}\n")
         except Exception:
@@ -188,7 +208,7 @@ class ActivityTracker:
 
         try:
             import sqlite3
-            db_path = os.path.join(os.path.dirname(__file__), "..", "stats.db")
+            db_path = data_path("stats.db")
             # timeout — сколько ждать, если файл БД сейчас занят другим
             # потоком (stats.py тоже пишет в тот же stats.db каждую
             # секунду) — раньше таймаута не было явно указано, и при
@@ -247,7 +267,7 @@ class ActivityTracker:
     def get_session_history(self, limit=10):
         try:
             import sqlite3
-            db_path = os.path.join(os.path.dirname(__file__), "..", "stats.db")
+            db_path = data_path("stats.db")
             conn = sqlite3.connect(db_path, timeout=10)
             rows = conn.execute("""
                 SELECT started_at, ended_at, active_seconds, watching_seconds, afk_seconds
@@ -276,10 +296,18 @@ class ActivityTracker:
 
     def _get_idle_seconds(self):
         try:
-            li = ctypes.wintypes.LASTINPUTINFO()
-            li.cbSize = ctypes.sizeof(li)
-            user32.GetLastInputInfo(ctypes.byref(li))
-            return (kernel32.GetTickCount() - li.dwTime) / 1000.0
+            li = LASTINPUTINFO()
+            li.cbSize = ctypes.sizeof(LASTINPUTINFO)
+            if not user32.GetLastInputInfo(ctypes.byref(li)):
+                return 0
+            millis = kernel32.GetTickCount() - li.dwTime
+            if millis < 0:
+                # GetTickCount — 32-битный счётчик миллисекунд с момента
+                # старта Windows, переполняется примерно раз в 49.7 дня —
+                # без этой поправки в момент переполнения idle_secs на
+                # мгновение уходил в минус и ломал сравнение с AFK_TIMEOUT
+                millis += 2**32
+            return millis / 1000.0
         except Exception:
             return 0
 

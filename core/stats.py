@@ -9,9 +9,10 @@ import threading
 import ctypes
 import ctypes.wintypes
 from datetime import datetime, date
+from core.paths import data_path
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "stats.db")
-SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "..", "settings.json")
+DB_PATH = data_path("stats.db")
+SETTINGS_PATH = data_path("settings.json")
 
 # Общий источник — раньше здесь были свои копии словарей, которые
 # расходились с tracker.py. Теперь один источник правды в app_maps.py.

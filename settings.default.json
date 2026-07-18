@@ -5,8 +5,8 @@
   "private_mode": false,
   "openrouter_api_key": "",
   "openrouter_model": "openrouter/free",
+  "pairing_key": "",
   "extra_ignore_processes": [],
-  "custom_sound_path": "",
   "my_ip_override": "",
   "gender": "male",
   "avatar": ""

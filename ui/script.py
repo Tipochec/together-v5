@@ -1,5 +1,18 @@
 JS = r"""
 
+// app/title приходят от партнёра по сети (core/network.py слушает порт
+// 39721 без пароля и шифрования) — значит это ЧУЖИЕ, непроверенные
+// строки. Раньше они вставлялись в innerHTML напрямую: посторонний,
+// подключившийся к порту, мог прислать поддельный activity-пакет с
+// title вида '<img src=x onerror="...">' и выполнить свой JS прямо в
+// этом окне (а оттуда — вызвать pywebview.api.get_settings() и утащить
+// API-ключ). escapeHtml() экранирует спецсимволы перед вставкой.
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
 const BADGES={gaming:'🎮 игра',browser:'🌐 браузер',chat:'💬 чат',
   music:'🎵 музыка',video:'▶ видео',work:'💻 работа',
   idle:'😴 AFK',streaming:'📡 стрим',other:'•'};
@@ -13,9 +26,9 @@ function runDebugScan(){
     el.innerHTML=rows.map(r=>`
       <div style="padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.05);
         display:flex;justify-content:space-between;gap:8px">
-        <span style="color:${r.ignored?'rgba(255,255,255,0.2)':'#a89ef0'}">${r.proc}</span>
+        <span style="color:${r.ignored?'rgba(255,255,255,0.2)':'#a89ef0'}">${escapeHtml(r.proc)}</span>
         <span style="color:rgba(255,255,255,0.25);overflow:hidden;text-overflow:ellipsis;
-          white-space:nowrap;flex:1;text-align:right">${r.title}</span>
+          white-space:nowrap;flex:1;text-align:right">${escapeHtml(r.title)}</span>
         <span style="color:${r.ignored?'#d4537e':'#1d9e75'}">${r.ignored?('игнор'+(r.reason?': '+r.reason:'')):'учтён'}</span>
       </div>`).join('');
   }).catch(e=>{ el.innerHTML='<div style="color:#d4537e">ошибка: '+e+'</div>'; });
@@ -183,10 +196,12 @@ function updateTimeline(myH,herH){
       </div>`;
     return items.slice(0,8).map((h,i)=>{
       const isNew=i===0&&(h.app+h.time)!==_prevFirst[who];
+      const app = escapeHtml(h.app);
+      const title = h.title ? ' — '+escapeHtml(h.title) : '';
       return `<div class="tl-item${isNew?' tl-item-new':''}">
-        <div class="tl-time">${h.time}</div>
+        <div class="tl-time">${escapeHtml(h.time)}</div>
         <div class="tl-dot tl-dot-${who}"></div>
-        <div class="tl-app">${h.app}${h.title?' — '+h.title:''}</div>
+        <div class="tl-app">${app}${title}</div>
       </div>`;
     }).join('');
   };
@@ -204,6 +219,7 @@ function updateStatus(c){
 function updatePartnerStatus(st){
   const el = document.getElementById('her-online-since');
   if(!st){ el.textContent=''; el.className='online-since'; return; }
+  const verb = st.gender==='female' ? 'была' : 'был';
   if(st.online){
     el.className = 'online-since is-online';
     el.innerHTML = `<span class="dot"></span> в сети с ${st.since}`;
@@ -212,7 +228,7 @@ function updatePartnerStatus(st){
     const dur = mins >= 60 ? `${Math.floor(mins/60)}ч ${mins%60}м` : `${mins}м`;
     el.className = 'online-since is-offline';
     el.innerHTML = mins > 0
-      ? `<span class="dot"></span> не в сети с ${st.since} (была ${dur})`
+      ? `<span class="dot"></span> не в сети с ${st.since} (${verb} ${dur})`
       : `<span class="dot"></span> не в сети с ${st.since}`;
   }
 }
@@ -248,7 +264,56 @@ function removeAvatar(){
   pywebview.api.remove_avatar().then(()=>renderAvatarPreview(null));
 }
 
+// ── Настройки: отслеживание несохранённых изменений ──────────────
+// Раньше "Приватный режим" сохранялся мгновенно по своему onchange, в
+// обход кнопки "Сохранить" — а остальные поля ждали нажатия кнопки.
+// Это и сбивало с толку ("сохранение не всегда требовало кнопку").
+// Теперь ВСЕ поля настроек, включая приватный режим, копятся только в
+// интерфейсе и уходят в settings.json одним пакетом по кнопке
+// "Сохранить" — а до этого момента изменённая строка подсвечивается,
+// чтобы было видно, что именно поменялось и ещё не сохранено.
+const SETTINGS_FIELDS = {
+  name:                   'inp-name',
+  gender:                 'inp-gender',
+  partner_name:           'inp-partner-name',
+  ip:                     'inp-ip',
+  openrouter_api_key:     'inp-openrouter-key',
+  extra_ignore_processes: 'inp-extra-ignore',
+  my_ip_override:         'inp-my-ip',
+  private_mode:           'tog-private',
+};
+
+let _settingsBaseline = {};
+
+function _settingsFieldValue(elId){
+  const el = document.getElementById(elId);
+  if(!el) return undefined;
+  return el.type==='checkbox' ? el.checked : el.value;
+}
+
+function _markSettingsDirty(elId){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const row = el.closest('.settings-row');
+  if(!row) return;
+  const changed = _settingsFieldValue(elId) !== _settingsBaseline[elId];
+  row.classList.toggle('settings-dirty', changed);
+}
+
+let _settingsWired = false;
+function _wireSettingsDirtyTracking(){
+  if(_settingsWired) return;
+  _settingsWired = true;
+  Object.values(SETTINGS_FIELDS).forEach(elId=>{
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const evt = (el.tagName==='SELECT' || el.type==='checkbox') ? 'change' : 'input';
+    el.addEventListener(evt, ()=>_markSettingsDirty(elId));
+  });
+}
+
 function loadSettings(){
+  _wireSettingsDirtyTracking();
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
     document.getElementById('inp-gender').value=s.gender||'male';
@@ -256,11 +321,18 @@ function loadSettings(){
     document.getElementById('inp-ip').value=s.ip||'';
     document.getElementById('inp-openrouter-key').value=s.openrouter_api_key||'';
     document.getElementById('inp-extra-ignore').value=(s.extra_ignore_processes||[]).join(', ');
-    document.getElementById('inp-custom-sound').value=s.custom_sound_path||'';
     document.getElementById('inp-my-ip').value=s.my_ip||'';
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
     renderAvatarPreview(s.avatar||'');
+
+    // Свежая точка отсчёта "что уже сохранено" + снимаем подсветку —
+    // так же происходит и сразу после успешного сохранения ниже.
+    Object.entries(SETTINGS_FIELDS).forEach(([key,elId])=>{
+      _settingsBaseline[elId] = _settingsFieldValue(elId);
+    });
+    document.querySelectorAll('.settings-row.settings-dirty')
+      .forEach(r=>r.classList.remove('settings-dirty'));
   });
 }
 
@@ -274,32 +346,31 @@ function saveSettings(){
     ip:document.getElementById('inp-ip').value,
     openrouter_api_key:document.getElementById('inp-openrouter-key').value,
     extra_ignore_processes:extraIgnore,
-    custom_sound_path:document.getElementById('inp-custom-sound').value,
     my_ip_override:document.getElementById('inp-my-ip').value,
+    private_mode:document.getElementById('tog-private').checked,
   }).then(()=>{
     const b=document.getElementById('btn-save');
     b.textContent='Сохранено ✓';
     setTimeout(()=>b.textContent='Сохранить',1500);
-  });
-}
 
-function showAiLog(){
-  const el=document.getElementById('ai-log-result');
-  el.textContent='читаю лог...';
-  pywebview.api.get_ai_log().then(text=>{
-    el.textContent = text && text.length ? text : 'лог пуст — запросов к AI ещё не было';
-  }).catch(e=>{ el.textContent='ошибка чтения лога: '+e; });
+    // Всё, что только что ушло в JSON, становится новой "базой" —
+    // подсветка изменённых полей снимается, поля возвращаются к
+    // обычному виду ровно так, как просили.
+    Object.entries(SETTINGS_FIELDS).forEach(([key,elId])=>{
+      _settingsBaseline[elId] = _settingsFieldValue(elId);
+    });
+    document.querySelectorAll('.settings-row.settings-dirty')
+      .forEach(r=>r.classList.remove('settings-dirty'));
+  });
 }
 
 function showNetworkLog(){
   const el=document.getElementById('network-log-result');
   el.textContent='читаю лог...';
-  pywebview.api.get_network_log().then(text=>{
+  pywebview.api.get_network_log(20).then(text=>{
     el.textContent = text && text.length ? text : 'лог пуст — событий пока не было';
   }).catch(e=>{ el.textContent='ошибка чтения лога: '+e; });
 }
-
-function savePrivate(val){ pywebview.api.save_settings({private_mode:val}); }
 
 function toggleAutostart(){
   pywebview.api.toggle_autostart().then(on=>{

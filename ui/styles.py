@@ -1,7 +1,10 @@
 CSS = r"""
 
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,'Segoe UI',sans-serif;background:#0f0f13;color:#e8e6f0;height:100vh;overflow:hidden;user-select:none}
+  body{font-family:-apple-system,'Segoe UI',sans-serif;background:#0f0f13;color:#e8e6f0;height:100vh;overflow:hidden;
+    -webkit-app-region:no-drag}
+  .titlebar,.nav-btn,.btn,.toggle,.badge,.card-label,.titlebar-btn,.titlebar-close,.section-title,
+  .history-col-title,.online-since,.status-text{user-select:none}
   .titlebar{height:40px;background:#0f0f13;display:flex;align-items:center;padding:0 16px;
     -webkit-app-region:drag;border-bottom:0.5px solid rgba(255,255,255,0.06);justify-content:space-between}
   .titlebar-title{font-size:13px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:8px}
@@ -75,7 +78,9 @@ CSS = r"""
   .card-updated{animation:fadeUpdate 0.8s ease}
   #page-settings,#page-stats{display:none}
   .settings-row{display:flex;justify-content:space-between;align-items:center;
-    padding:11px 0;border-bottom:0.5px solid rgba(255,255,255,0.05);font-size:13px}
+    padding:11px 0 11px 10px;margin-left:-10px;border-bottom:0.5px solid rgba(255,255,255,0.05);
+    font-size:13px;border-left:2.5px solid transparent;transition:background .2s,border-color .2s}
+  .settings-row.settings-dirty{border-left-color:#f0b352;background:rgba(240,179,82,0.06)}
   .settings-label{color:rgba(255,255,255,0.55)}
   input.si,select.si{background:#1a1820;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;
     padding:4px 10px;color:#e8e6f0;font-size:12px;width:140px;outline:none}

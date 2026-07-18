@@ -2,9 +2,10 @@ import sqlite3
 import threading
 import os
 from datetime import datetime
+from core.paths import data_path
 
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "stats.db")
+DB_PATH = data_path("stats.db")
 
 
 class ChatManager:

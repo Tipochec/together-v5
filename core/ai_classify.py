@@ -12,6 +12,7 @@ import threading
 import time
 import urllib.request
 import urllib.error
+from core.paths import data_path
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # "openrouter/free" — авто-роутер, сам выбирает доступную бесплатную модель.
@@ -19,8 +20,8 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # OpenRouter периодически переименовываются/убираются без предупреждения.
 DEFAULT_MODEL  = "openrouter/free"
 
-CACHE_PATH = os.path.join(os.path.dirname(__file__), "..", "ai_categories_cache.json")
-LOG_PATH   = os.path.join(os.path.dirname(__file__), "..", "ai_debug.log")
+CACHE_PATH = data_path("ai_categories_cache.json")
+LOG_PATH   = data_path("ai_debug.log")
 
 VALID_CATEGORIES = [
     "gaming", "browser", "chat", "music", "video",

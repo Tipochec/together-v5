@@ -2,6 +2,7 @@
 Иконка в трее
 """
 import sys
+import os
 import builtins
 
 try:
@@ -11,6 +12,8 @@ try:
 except ImportError:
     print("pip install pystray pillow")
     sys.exit(1)
+
+from core.paths import resource_path
 
 # Глобальный флаг для корректного завершения
 _quit_flag = False
@@ -82,6 +85,16 @@ class TrayApp:
             cb()
 
     def _create_icon_image(self, size=64):
+        # Свой логотип — положи файл assets/icon.png (квадратный,
+        # рекомендуется 256x256, с прозрачным фоном) рядом с main.py.
+        # Если файла нет — используется сгенерированная заглушка ниже.
+        custom_path = resource_path("assets", "icon.png")
+        if os.path.isfile(custom_path):
+            try:
+                return Image.open(custom_path).convert("RGBA")
+            except Exception:
+                pass  # битый/неподдерживаемый файл — падаем на заглушку
+
         img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         m = 4
