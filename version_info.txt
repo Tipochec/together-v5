@@ -1,0 +1,45 @@
+# Ресурс версии для PyInstaller.
+#
+# Зачем: без этого файла в диспетчере задач (вкладка "Автозагрузка" /
+# "Подробности") Windows показывает приложение как "main.exe" — просто
+# имя файла, потому что в exe нет никаких метаданных. Эта секция
+# зашивает в exe стандартные Windows-поля версии (то же самое, что у
+# любой обычной программы), и Windows начинает показывать поле
+# FileDescription ("Together") вместо голого имени файла.
+#
+# Подключается в main.spec через EXE(..., version='version_info.txt').
+#
+# Примечание: то, что у партнёра автозагрузка показывается как
+# "Python" — это метаданные самого python.exe (Python Software
+# Foundation), а не этого приложения: он всё ещё запускает main.py из
+# исходников, а не собранный .exe. Этот файл влияет только на то, что
+# получится при сборке через PyInstaller — если партнёр тоже перейдёт
+# на .exe, у него тоже будет показываться "Together".
+
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(0, 1, 0, 0),
+    prodvers=(0, 1, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          u'040904B0',
+          [StringStruct(u'CompanyName', u'Together'),
+          StringStruct(u'FileDescription', u'Together'),
+          StringStruct(u'FileVersion', u'0.1.0.0'),
+          StringStruct(u'InternalName', u'Together'),
+          StringStruct(u'OriginalFilename', u'Together.exe'),
+          StringStruct(u'ProductName', u'Together'),
+          StringStruct(u'ProductVersion', u'0.1.0.0')])
+      ]),
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+  ]
+)

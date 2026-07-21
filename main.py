@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.tracker import ActivityTracker
 from core.network import NetworkManager
-from core.autostart import setup_autostart
+from core.autostart import setup_autostart_once
+from core.firewall import ensure_firewall_rule_once
 from core.tray import TrayApp
 from core.stats import StatsTracker
 
@@ -60,11 +61,19 @@ def _warn_already_running():
 
 
 def main():
-    setup_autostart()
+    setup_autostart_once()
 
     tracker = ActivityTracker()
     network = NetworkManager(tracker)
     stats   = StatsTracker(tracker)
+
+    # Разрешающее правило брандмауэра для входящих подключений на
+    # PORT (см. core/firewall.py) — без него сообщения партнёра к тебе
+    # тонут в TCP timeout без единой строки в ЕГО логе, хотя у тебя всё
+    # выглядит подключённым. Запускаем в отдельном потоке — вызов может
+    # показать системный UAC-диалог (одноразово, как при установке
+    # обычной программы), и это не должно морозить запуск окна.
+    threading.Thread(target=ensure_firewall_rule_once, daemon=True).start()
 
     app = TrayApp(tracker, network)
     threading.Thread(target=app.run,       daemon=True).start()

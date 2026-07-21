@@ -254,6 +254,16 @@ function renderAvatarPreview(dataUri){
   }
 }
 
+function setupFirewall(){
+  const b = document.getElementById('btn-firewall');
+  const row = b.closest('.settings-row');
+  b.textContent = 'ждём подтверждения...';
+  pywebview.api.setup_firewall().then(ok=>{
+    b.textContent = ok ? 'настроено ✓' : 'не удалось, повторить?';
+    if(row) row.classList.add('settings-dirty');
+  });
+}
+
 function pickAvatar(){
   pywebview.api.pick_avatar().then(uri=>{
     if(uri) renderAvatarPreview(uri);
@@ -373,8 +383,15 @@ function showNetworkLog(){
 }
 
 function toggleAutostart(){
+  const row = document.getElementById('btn-autostart').closest('.settings-row');
   pywebview.api.toggle_autostart().then(on=>{
     document.getElementById('btn-autostart').textContent=on?'включён ✓':'выключен';
+    // Подсветка должна вести себя так же, как у остальных полей
+    // настроек: гаснет только когда нажали "Сохранить" (см. общий
+    // сброс .settings-dirty в конце saveSettings()), а НЕ сама по
+    // себе через какой-то таймер — иначе получается заметное
+    // расхождение в поведении между этой строкой и всеми остальными.
+    if(row) row.classList.add('settings-dirty');
   });
 }
 

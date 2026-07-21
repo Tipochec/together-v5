@@ -247,6 +247,22 @@ class WindowAPI:
         setup_autostart(enable=not enabled)
         return not enabled
 
+    def setup_firewall(self):
+        """Ручной повтор настройки брандмауэра (кнопка в настройках) —
+        на случай если пользователь отказал в UAC при первом запуске
+        или правило было позже удалено вручную. Показывает системный
+        UAC-запрос синхронно (пока пользователь не ответит), поэтому
+        дёргается кнопкой, а не автоматически."""
+        import time
+        from core.firewall import add_rule_elevated, rule_exists
+        add_rule_elevated()
+        # netsh выполняется в отдельном elevated-процессе, запущенном
+        # через ShellExecuteW — небольшая пауза, чтобы он успел
+        # завершиться до проверки, иначе rule_exists() может ещё не
+        # увидеть только что добавленное правило.
+        time.sleep(1.5)
+        return rule_exists()
+
 def _do_quit():
     global _quitting
     _quitting = True

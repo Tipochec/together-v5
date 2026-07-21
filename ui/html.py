@@ -181,8 +181,22 @@ HTML = r"""
       </label>
     </div>
     <div class="settings-row">
-      <span class="settings-label">Автозапуск с Windows</span>
+      <span class="settings-label">
+        Автозапуск с Windows
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Запускает приложение автоматически при входе в Windows. Включён по умолчанию при первом запуске — дальше решение полностью твоё, приложение больше само его не перевключает.</span>
+        </span>
+      </span>
       <button class="btn" id="btn-autostart" onclick="toggleAutostart()">проверка...</button>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">
+        Брандмауэр (входящие сообщения)
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Разрешает партнёру подключаться к тебе напрямую — без этого его сообщения будут теряться по таймауту, хотя у тебя всё выглядит подключённым. Настраивается один раз, потребует подтверждения в системном окне Windows (UAC).</span>
+        </span>
+      </span>
+      <button class="btn" id="btn-firewall" onclick="setupFirewall()">настроить</button>
     </div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button class="btn btn-primary" id="btn-save" onclick="saveSettings()">Сохранить</button>
