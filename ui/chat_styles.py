@@ -12,10 +12,13 @@ body{
     height:100vh;
     overflow:hidden;
     -webkit-app-region:no-drag;
+    display:flex;
+    flex-direction:column;
 }
 
 .titlebar{
     height:40px;
+    flex-shrink:0;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -45,7 +48,8 @@ body{
 }
 
 .messages{
-    height:calc(100vh - 95px);
+    flex:1;
+    min-height:0;
     overflow-y:auto;
     padding:14px;
 }
@@ -65,25 +69,36 @@ body{
 }
 
 .input{
-    height:55px;
+    min-height:55px;
+    flex-shrink:0;
+    max-height:140px;
     border-top:.5px solid rgba(255,255,255,.06);
     display:flex;
+    align-items:flex-end;
     gap:8px;
     padding:10px;
 }
 
-.input input{
+.input textarea{
     flex:1;
     background:#1a1820;
     border:none;
     outline:none;
     border-radius:10px;
-    padding:0 12px;
+    padding:8px 12px;
     color:white;
+    font-family:inherit;
+    font-size:13px;
+    line-height:1.4;
+    resize:none;
+    max-height:120px;
+    overflow-y:auto;
 }
 
 .send{
     width:42px;
+    height:38px;
+    flex-shrink:0;
     border:none;
     border-radius:10px;
     background:#534ab7;
@@ -137,7 +152,7 @@ body{
 
 .message{
     max-width:75%;
-    padding:10px 30px 10px 14px;
+    padding:10px 54px 10px 14px;
     border-radius:14px;
     margin-bottom:8px;
     word-break:break-word;
@@ -175,6 +190,98 @@ body{
 .msg-copy:hover{
     background:rgba(0,0,0,0.4);
     color:#fff;
+}
+
+.msg-reply{
+    position:absolute;
+    top:6px;
+    right:30px;
+    width:20px;
+    height:20px;
+    border:none;
+    border-radius:5px;
+    background:rgba(0,0,0,0.25);
+    color:rgba(255,255,255,0.75);
+    font-size:12px;
+    line-height:1;
+    cursor:pointer;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    -webkit-app-region:no-drag;
+}
+.message:hover .msg-reply{
+    display:flex;
+}
+.msg-reply:hover{
+    background:rgba(0,0,0,0.4);
+    color:#fff;
+}
+
+/* Цитата внутри самого пузыря сообщения — то, на что ответили */
+.reply-quote{
+    border-left:3px solid rgba(255,255,255,0.3);
+    background:rgba(0,0,0,0.15);
+    border-radius:6px;
+    padding:4px 8px;
+    margin-bottom:6px;
+    font-size:11.5px;
+}
+.reply-quote-sender{
+    color:#a89ef0;
+    font-weight:600;
+    margin-bottom:1px;
+}
+.reply-quote-text{
+    color:rgba(255,255,255,0.55);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+}
+
+/* Плашка "отвечаете на..." над полем ввода, пока ответ не отправлен/не отменён */
+.reply-preview{
+    display:flex;
+    flex-shrink:0;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    background:#1a1820;
+    border-top:.5px solid rgba(255,255,255,.06);
+    -webkit-app-region:no-drag;
+}
+.reply-preview-body{
+    flex:1;
+    min-width:0;
+    border-left:3px solid #534ab7;
+    padding-left:8px;
+}
+.reply-preview-sender{
+    font-size:11px;
+    font-weight:600;
+    color:#a89ef0;
+}
+.reply-preview-text{
+    font-size:11.5px;
+    color:rgba(255,255,255,0.5);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.reply-preview-cancel{
+    flex-shrink:0;
+    width:22px;
+    height:22px;
+    border:none;
+    border-radius:6px;
+    background:rgba(255,255,255,0.08);
+    color:rgba(255,255,255,0.6);
+    cursor:pointer;
+}
+.reply-preview-cancel:hover{
+    background:rgba(255,255,255,0.15);
 }
 
 .sender{

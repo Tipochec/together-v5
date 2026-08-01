@@ -74,6 +74,85 @@ def init_db():
         conn.commit()
 
 
+def _load_settings_dict():
+    from core.tracker import load_settings
+    return load_settings()
+
+
+def _save_settings_dict(s):
+    from core.tracker import _settings_path
+    import json
+    with open(_settings_path(), "w", encoding="utf-8") as f:
+        json.dump(s, f, ensure_ascii=False, indent=2)
+
+
+def get_app_customizations():
+    """
+    settings.json → "app_customizations": {
+        "Steam": {"display_name": "Игры", "color": "#ff8800",
+                   "category": "gaming", "excluded": false},
+        ...
+    }
+    Ключ — то самое имя приложения, что лежит в колонке app_time.app
+    (см. app_maps.APP_NAMES / clean_process_name). Один объект на
+    приложение хранит и кастомизацию, и флаг исключения — как и просили:
+    одно окно для того и другого.
+    """
+    try:
+        return _load_settings_dict().get("app_customizations", {}) or {}
+    except Exception:
+        return {}
+
+
+def save_app_customization(app_name, data):
+    """Частично обновляет запись для app_name (не перезатирает поля,
+    которых нет в data)."""
+    s = _load_settings_dict()
+    custom = s.get("app_customizations", {}) or {}
+    entry = dict(custom.get(app_name, {}))
+    for k, v in data.items():
+        if v is not None:
+            entry[k] = v
+    custom[app_name] = entry
+    s["app_customizations"] = custom
+    _save_settings_dict(s)
+
+
+def delete_app_customization(app_name):
+    s = _load_settings_dict()
+    custom = s.get("app_customizations", {}) or {}
+    if app_name in custom:
+        del custom[app_name]
+        s["app_customizations"] = custom
+        _save_settings_dict(s)
+
+
+def apply_customizations(rows):
+    """
+    Накладывает пользовательские переименование/цвет/категорию на список
+    строк {app, category, seconds} и полностью выбрасывает исключённые
+    приложения из выдачи (и из истории, не только "с сегодня") — так
+    исключение в статистике одновременно прячет прошлые записи и
+    останавливает будущий учёт (см. _get_open_apps ниже).
+    """
+    custom = get_app_customizations()
+    out = []
+    for r in rows:
+        c = custom.get(r["app"])
+        if c and c.get("excluded"):
+            continue
+        r = dict(r)
+        if c:
+            if c.get("display_name"):
+                r["display_name"] = c["display_name"]
+            if c.get("category"):
+                r["category"] = c["category"]
+            if c.get("color"):
+                r["color"] = c["color"]
+        out.append(r)
+    return out
+
+
 class StatsTracker:
     def __init__(self, tracker):
         self.tracker = tracker  # нужен только для AFK проверки
@@ -105,6 +184,8 @@ class StatsTracker:
         """
         found = {}  # app_name → category
         ignore_extra = _extra_ignore_processes()
+        excluded_apps = {name for name, c in get_app_customizations().items()
+                          if c.get("excluded")}
 
         user32  = ctypes.windll.user32
         kernel32 = ctypes.windll.kernel32
@@ -155,6 +236,8 @@ class StatsTracker:
                     app_name = proc.replace(".exe", "").replace(".EXE", "").capitalize()
 
                 if app_name not in found:
+                    if app_name in excluded_apps:
+                        return True
                     found[app_name] = self._get_category(app_name)
 
             except Exception:
@@ -169,9 +252,17 @@ class StatsTracker:
 
     def _get_category(self, app_name):
         """
-        Категория для известных — из словаря CATEGORIES.
-        Для неизвестных — спрашиваем AI (с кешем), пока ответа нет — "other".
+        Категория для известных — из словаря CATEGORIES. Пользовательская
+        категория (заданная вручную в окне статистики) имеет приоритет над
+        обеими автоматиками — встроенной и AI, иначе после ручной правки
+        категория откатывалась бы на старую при каждой новой записи в БД.
+        Для неизвестных без ручной правки — спрашиваем AI (с кешем), пока
+        ответа нет — "other".
         """
+        custom = get_app_customizations().get(app_name)
+        if custom and custom.get("category"):
+            return custom["category"]
+
         cat = CATEGORIES.get(app_name)
         if cat:
             return cat
@@ -195,12 +286,23 @@ class StatsTracker:
         """
         Диагностика — показывает ВСЕ видимые окна с их процессами,
         даже те что отфильтрованы. Помогает понять почему что-то не попадает.
+
+        Раньше здесь проверялись только "базовый список игнора" и
+        extra_ignore_processes — приложение, исключённое через кнопку в
+        самой статистике (см. get_app_customizations), продолжало
+        показываться тут как "учтено", хотя реально уже не записывалось в
+        БД (см. excluded_apps в _get_open_apps выше) — сканер просто не
+        знал про этот, более новый способ исключения. Теперь разрешаем то
+        же самое читаемое имя приложения (APP_NAMES/капитализация), что и
+        основной цикл учёта, и сверяемся с тем же списком исключённых.
         """
         results = []
         user32   = ctypes.windll.user32
         kernel32 = ctypes.windll.kernel32
         psapi    = ctypes.windll.psapi
         ignore_extra = _extra_ignore_processes()
+        excluded_apps = {name for name, c in get_app_customizations().items()
+                          if c.get("excluded")}
 
         def enum_callback(hwnd, _):
             try:
@@ -229,6 +331,10 @@ class StatsTracker:
                     kernel32.CloseHandle(handle)
                     proc = os.path.basename(buf2.value).lower() if buf2.value else "?"
 
+                app_name = APP_NAMES.get(proc)
+                if not app_name and proc not in ("?", ""):
+                    app_name = proc.replace(".exe", "").replace(".EXE", "").capitalize()
+
                 if visible and length > 0:
                     reason = None
                     if iconic:
@@ -239,6 +345,8 @@ class StatsTracker:
                         reason = "в базовом списке игнора"
                     elif proc in ignore_extra:
                         reason = "в вашем extra_ignore_processes"
+                    elif app_name and app_name in excluded_apps:
+                        reason = "исключено вручную в статистике"
 
                     results.append({
                         "proc": proc, "title": title[:40],
@@ -252,6 +360,20 @@ class StatsTracker:
         WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
         user32.EnumWindows(WNDENUMPROC(enum_callback), 0)
         return results
+
+    def delete_app(self, app_name):
+        """
+        Удаляет ВСЕ строки приложения из статистики — за все дни, что есть
+        в базе, а не только за сегодня (раньше такой возможности не было
+        вовсе). app_time хранит по одной строке на (дата, приложение), так
+        что просто чистим все строки с этим именем."""
+        try:
+            with get_db() as conn:
+                conn.execute("DELETE FROM app_time WHERE app = ?", (app_name,))
+                conn.commit()
+            return True
+        except Exception:
+            return False
 
     def _record_batch(self, apps):
         """Прибавляем 1 секунду ко всем открытым приложениям"""

@@ -164,30 +164,96 @@ class WindowAPI:
         return _tracker.get_session_history(limit=10)
 
     def get_stats(self, period):
-        from core.stats import fmt_time
+        from core.stats import apply_customizations
         if not _stats:
             return {"apps": [], "categories": [], "total": 0}
         if period == "week":
             apps = _stats.get_week()
-            cats_raw = {}
-            for a in apps:
-                c = a["category"]
-                cats_raw[c] = cats_raw.get(c, 0) + a["seconds"]
-            categories = [{"category": k, "seconds": v}
-                          for k, v in sorted(cats_raw.items(), key=lambda x: -x[1])]
         elif period == "all":
             apps = _stats.get_all_time(limit=30)
-            cats_raw = {}
-            for a in apps:
-                c = a["category"]
-                cats_raw[c] = cats_raw.get(c, 0) + a["seconds"]
-            categories = [{"category": k, "seconds": v}
-                          for k, v in sorted(cats_raw.items(), key=lambda x: -x[1])]
         else:
-            apps       = _stats.get_today()
-            categories = _stats.get_category_totals()
+            apps = _stats.get_today()
+
+        # Переименование/цвет/категория, выставленные вручную в окне
+        # статистики, и исключённые приложения — применяются здесь одним
+        # местом для ВСЕХ периодов (раньше "сегодня" считало категории
+        # отдельным SQL-запросом мимо этой логики, и правки не были видны
+        # на вкладке "сегодня").
+        apps = apply_customizations(apps)
+
+        cats_raw = {}
+        for a in apps:
+            c = a["category"]
+            cats_raw[c] = cats_raw.get(c, 0) + a["seconds"]
+        categories = [{"category": k, "seconds": v}
+                      for k, v in sorted(cats_raw.items(), key=lambda x: -x[1])]
         total = sum(a["seconds"] for a in apps)
         return {"apps": apps, "categories": categories, "total": total}
+
+    def delete_stat(self, app_name):
+        """Полностью убирает приложение из статистики — за все даты, а не
+        только за сегодня (кнопка ✕ у строки в статистике)."""
+        if not _stats:
+            return False
+        return _stats.delete_app(app_name)
+
+    def get_stat_customization(self, app_name):
+        """Текущие ручные настройки приложения (для предзаполнения окна
+        редактирования) — имя, цвет, категория, исключено ли."""
+        from core.stats import get_app_customizations
+        return get_app_customizations().get(app_name, {})
+
+    def save_stat_customization(self, app_name, data):
+        """
+        Сохраняет переименование/цвет/категорию/исключение для приложения —
+        одно окно на всё, как и просили. data: {display_name, color,
+        category, excluded}. Поле excluded=true немедленно останавливает
+        дальнейший учёт этого приложения (core/stats.py
+        StatsTracker._get_open_apps) и прячет уже накопленную историю из
+        статистики (core/stats.py apply_customizations), но не удаляет её
+        физически из базы — если потом снять исключение, накопленное ранее
+        время снова появится.
+        """
+        from core.stats import save_app_customization
+        save_app_customization(app_name, data)
+        return True
+
+    def get_custom_categories(self):
+        """
+        Категории, добавленные самим пользователем (кнопка "+ своя
+        категория" в окне редактирования приложения в статистике) — в
+        settings.json, ключ "custom_categories": {ключ: {name, color}}.
+        Встроенные категории (игры/браузер/музыка и т.д.) остаются
+        зашитыми в JS (CAT_NAMES/CAT_COLORS) — это только пользовательские
+        добавления поверх них.
+        """
+        from core.tracker import load_settings
+        return load_settings().get("custom_categories", {})
+
+    def add_custom_category(self, name, color):
+        """
+        Создаёт новую категорию с уникальным ключом на основе введённого
+        названия. Ключ — чисто технический идентификатор: используем
+        "custom_N", само название хранится отдельно и показывается
+        пользователю как есть."""
+        from core.tracker import load_settings, _settings_path
+        name = (name or "").strip()
+        if not name:
+            return None
+        settings = load_settings()
+        custom = settings.get("custom_categories", {}) or {}
+        n = 1
+        while f"custom_{n}" in custom:
+            n += 1
+        key = f"custom_{n}"
+        custom[key] = {"name": name, "color": color or "#a89ef0"}
+        settings["custom_categories"] = custom
+        try:
+            with open(_settings_path(), "w", encoding="utf-8") as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
+        except Exception:
+            return None
+        return {"key": key, "name": name, "color": custom[key]["color"]}
       
     def open_chat(self):
       open_chat_window()
@@ -237,8 +303,9 @@ class WindowAPI:
             except Exception:
                 pass
             
-    def send_message(self, text):
-        _network.send_message(text)
+    def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None):
+        _network.send_message(text, reply_to_uid=reply_to_uid,
+                               reply_sender=reply_sender, reply_text=reply_text)
         return True
 
     def toggle_autostart(self):
@@ -262,6 +329,29 @@ class WindowAPI:
         # увидеть только что добавленное правило.
         time.sleep(1.5)
         return rule_exists()
+
+    def repair_firewall(self):
+        """
+        "Пересоздать правило" — для случая, когда правило по имени вроде
+        есть, но реально ничего не разрешает (устаревший путь к .exe после
+        переустановки/переноса, дубликаты и т.п.), либо когда просто хочется
+        заново увидеть системный диалог Windows про блокировку (тот, что с
+        кнопкой "Разрешить доступ" — см. первый скриншот пользователя) вместо
+        нашего собственного UAC-запроса на netsh.
+
+        Шаги: 1) удаляем текущее правило (UAC), 2) перезапускаем слушающий
+        сокет — это заставляет Windows Firewall заново оценить попытку
+        слушать порт и, если "уведомлять о новых приложениях" включено в
+        настройках Windows, показать своё системное окно самостоятельно.
+        """
+        import time
+        from core.firewall import delete_rule_elevated, rule_exists
+        delete_rule_elevated()
+        time.sleep(1.5)
+        if _network:
+            _network.restart_server()
+        return not rule_exists()
+
 
 def _do_quit():
     global _quitting

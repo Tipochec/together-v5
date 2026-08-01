@@ -22,6 +22,24 @@ async function loadChat() {
             div.appendChild(sender);
         }
 
+        // Цитата сообщения, на которое ответили — текст цитаты хранится
+        // прямо в этом сообщении (reply_text/reply_sender), а не
+        // подгружается по ссылке на оригинал, поэтому показывается даже
+        // если у партнёра то исходное сообщение уже удалено/недоступно.
+        if (msg.reply_text) {
+            const quote = document.createElement("div");
+            quote.className = "reply-quote";
+            const quoteSender = document.createElement("div");
+            quoteSender.className = "reply-quote-sender";
+            quoteSender.textContent = msg.reply_sender || "Сообщение";
+            const quoteText = document.createElement("div");
+            quoteText.className = "reply-quote-text";
+            quoteText.textContent = msg.reply_text;
+            quote.appendChild(quoteSender);
+            quote.appendChild(quoteText);
+            div.appendChild(quote);
+        }
+
         const body = document.createElement("div");
         body.className = "msg-text";
         body.textContent = msg.text;
@@ -46,10 +64,42 @@ async function loadChat() {
         };
         div.appendChild(copyBtn);
 
+        // Кнопка "ответить" — появляется по наведению, как и 📋. Клик
+        // включает режим ответа (см. startReply) — плашка над полем
+        // ввода покажет, кому и что отвечаем, пока не отправишь/отменишь.
+        const replyBtn = document.createElement("button");
+        replyBtn.className = "msg-reply";
+        replyBtn.title = "Ответить";
+        replyBtn.textContent = "↩";
+        replyBtn.onclick = (e) => {
+            e.stopPropagation();
+            startReply(msg);
+        };
+        div.appendChild(replyBtn);
+
         chat.appendChild(div);
     }
 
     chat.scrollTop = chat.scrollHeight;
+}
+
+// ── Ответ на конкретное сообщение ─────────────────────────────────────
+function startReply(msg) {
+    window._replyingTo = {
+        msg_uid: msg.msg_uid || null,
+        sender: msg.incoming ? (msg.sender || "Партнёр") : "Вы",
+        text: msg.text,
+    };
+    document.getElementById("reply-preview-sender").textContent = window._replyingTo.sender;
+    document.getElementById("reply-preview-text").textContent = window._replyingTo.text;
+    document.getElementById("reply-preview").style.display = "flex";
+    const input = document.getElementById("message");
+    if (input) input.focus();
+}
+
+function cancelReply() {
+    window._replyingTo = null;
+    document.getElementById("reply-preview").style.display = "none";
 }
 
 // Копирование текста сообщения в буфер обмена — по клику на 📋,
@@ -89,10 +139,19 @@ async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
+    const replying = window._replyingTo || null;
+
     input.value = "";
+    autoResizeMessageBox();
+    cancelReply();
     input.disabled = true;
     try {
-        await pywebview.api.send_message(text);
+        await pywebview.api.send_message(
+            text,
+            replying ? replying.msg_uid : null,
+            replying ? replying.sender : null,
+            replying ? replying.text : null
+        );
         await loadChat();
     } catch (e) {
         console.error("send_message failed:", e);
@@ -100,6 +159,16 @@ async function sendMessage() {
         input.disabled = false;
         input.focus();
     }
+}
+
+// Textarea растёт вместе с текстом (до max-height из CSS, дальше — свой
+// скролл внутри поля), а не остаётся однострочным — иначе перенос строки
+// по Shift+Enter был бы не виден, пока не проскроллишь само поле.
+function autoResizeMessageBox() {
+    const input = document.getElementById("message");
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = input.scrollHeight + "px";
 }
 
 // Популярные эмодзи — просто статичный набор, ничего скачивать/грузить
@@ -181,11 +250,15 @@ window.addEventListener("pywebviewready", () => {
     if (input) {
         input.focus();
         input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
+            // Shift+Enter — намеренно ничего не делаем и НЕ вызываем
+            // preventDefault(): браузер сам вставит перенос строки в
+            // textarea, как в обычном мессенджере.
         });
+        input.addEventListener("input", autoResizeMessageBox);
     }
 });
 """

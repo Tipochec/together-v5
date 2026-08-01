@@ -179,4 +179,40 @@ CSS = r"""
         background:rgba(255,255,255,.07);
         color:rgba(255,255,255,.7);
     }
+
+  /* Окно редактирования/подтверждения удаления в статистике — тот же
+     визуальный стиль, что и confirm-overlay в окне чата (см.
+     ui/chat_styles.py), только вынесен сюда под более общими именами,
+     т.к. используется больше чем один тип попапа. */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.55);
+    display:flex;align-items:center;justify-content:center;z-index:50;
+  }
+  .modal-box{
+    width:calc(100% - 48px);max-width:300px;background:#1e1c26;
+    border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;
+    padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .modal-title{font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:12px;font-weight:500}
+  .modal-row{display:flex;justify-content:space-between;align-items:center;
+    gap:10px;margin-bottom:10px;font-size:12px;color:rgba(255,255,255,0.5)}
+  .modal-label{flex-shrink:0}
+  .color-input{width:40px;height:26px;padding:0;border:none;border-radius:6px;
+    background:transparent;cursor:pointer}
+  .confirm-btns{display:flex;gap:8px}
+  .confirm-btn{flex:1;border:none;border-radius:9px;padding:8px 0;font-size:12px;cursor:pointer}
+  .confirm-cancel{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6)}
+  .confirm-ok{background:#534ab7;color:white}
+  .confirm-text{font-size:12.5px;line-height:1.5;color:rgba(255,255,255,0.8);margin-bottom:14px}
+
+  /* ✕ у строки статистики — скрыта пока не наведёшься на строку, чтобы не
+     захламлять список визуально. */
+  .stat-row{position:relative}
+  .stat-del-btn{
+    opacity:0;flex-shrink:0;width:20px;height:20px;border:none;border-radius:6px;
+    background:rgba(212,83,126,0.15);color:#d4537e;cursor:pointer;font-size:11px;
+    transition:opacity .15s,background .15s;
+  }
+  .stat-row:hover .stat-del-btn{opacity:1}
+  .stat-del-btn:hover{background:rgba(212,83,126,0.3)}
 """

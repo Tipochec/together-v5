@@ -38,11 +38,20 @@ HTML = r"""
 <div class="emoji-grid" id="emoji-grid"></div>
 </div>
 
+<div id="reply-preview" class="reply-preview" style="display:none">
+  <div class="reply-preview-body">
+    <div class="reply-preview-sender" id="reply-preview-sender"></div>
+    <div class="reply-preview-text" id="reply-preview-text"></div>
+  </div>
+  <button class="reply-preview-cancel" onclick="cancelReply()" title="Отменить ответ">✕</button>
+</div>
+
 <div class="input">
 
-<input
+<textarea
 id="message"
-placeholder="Напишите сообщение...">
+rows="1"
+placeholder="Напишите сообщение..."></textarea>
 
 <button
 class="send emoji-btn"

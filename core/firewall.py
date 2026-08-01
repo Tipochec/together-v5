@@ -32,11 +32,21 @@ netsh advfirewall firewall add rule требует прав администра
 """
 import subprocess
 import sys
+import threading
 
 from core.paths import is_frozen
 
 RULE_NAME = "Together (app)"
 PORT = 39721
+
+# Взводится в конце ensure_firewall_rule_once() (успешно или нет — не важно,
+# важно что попытка настройки/починки правила состоялась). core/network.py
+# ждёт этот флаг (с таймаутом) перед первым bind() слушающего сокета —
+# иначе бывает гонка: сокет забиндился раньше, чем правило вообще успело
+# появиться, и Windows показывает своё системное окно про блокировку
+# ОДНОВРЕМЕННО с нашим UAC-запросом на netsh — два непонятных диалога
+# почти одновременно вместо одного.
+firewall_attempt_done = threading.Event()
 
 
 def _no_window_kwargs():
@@ -57,14 +67,32 @@ def _exe_path():
 
 
 def rule_exists():
-    """Проверка наличия правила НЕ требует прав администратора."""
+    """
+    Проверка наличия правила НЕ требует прав администратора.
+
+    Раньше здесь искалась английская фраза "No rules match" в выводе
+    netsh — а на любой НЕ-английской Windows (например русской) netsh
+    отвечает на своём языке, эта фраза там никогда не встречается, и
+    функция ЛОЖНО возвращала True всегда, независимо от того, есть
+    правило или нет. Из-за этого код почти во всех местах думал, что
+    правило уже настроено, никогда не пытался его добавить, и после
+    ручного удаления правила (например при тестировании) — никогда не
+    восстанавливал его обратно, хотя выглядело так, будто "всё сломалось
+    без причины".
+
+    Вместо разбора языкового текста ищем в выводе сам RULE_NAME — если
+    правило существует, netsh обязательно эхом покажет его имя в строке
+    "Rule Name:" / "Имя правила:" (на любом языке), а если правила нет —
+    в выводе не будет вообще никакого упоминания этого имени. Это не
+    зависит от языка системы.
+    """
     try:
         result = subprocess.run(
             ["netsh", "advfirewall", "firewall", "show", "rule", f"name={RULE_NAME}"],
             capture_output=True, text=True, timeout=10,
             **_no_window_kwargs(),
         )
-        return result.returncode == 0 and "No rules match" not in result.stdout
+        return result.returncode == 0 and RULE_NAME in result.stdout
     except Exception:
         return False
 
@@ -97,37 +125,176 @@ def add_rule_elevated():
         return False
 
 
-def ensure_firewall_rule_once():
+def delete_rule_elevated():
     """
-    Вызывается один раз при старте приложения (в отдельном потоке —
-    UAC-диалог, если появится, не должен блокировать открытие окна).
+    Удаляет правило по имени через тот же elevated-механизм, что и
+    add_rule_elevated() — тоже требует UAC, тоже "успех" означает только
+    "elevated-процесс стартовал", а не "правила точно нет" (это отдельно
+    проверяется rule_exists() после).
 
-    Пытается настроить брандмауэр сам, но не чаще одного раза за всё
-    время жизни settings.json — если пользователь один раз отказал в
-    UAC (или добавление не удалось по другой причине), мы не долбим
-    его этим диалогом на каждом запуске. Повторить попытку осознанно
-    можно кнопкой "Настроить брандмауэр" в настройках (см. ui/window.py
-    WindowAPI.setup_firewall).
+    Нужна для двух сценариев:
+    1) Кнопка "Пересоздать правило" в настройках — когда правило по
+       имени существует, но указывает на СТАРЫЙ путь к .exe (после
+       переустановки/переноса программы в другую папку) — netsh не
+       умеет обновлять правило "на месте", такое правило нужно сначала
+       удалить, иначе add_rule_elevated() создаст ДУБЛИКАТ под тем же
+       именем, а старое неверное правило продолжит "числиться"
+       существующим при проверке rule_exists() по имени.
+    2) Чтобы после удаления явно пересоздать слушающее TCP-соединение
+       (см. core/network.py NetworkManager.restart_server) — тогда
+       Windows Firewall заново оценивает попытку слушать порт и может
+       показать СВОЁ системное окно "Брандмауэр заблокировал некоторые
+       функции этого приложения" (то самое окно с кнопкой "Разрешить
+       доступ", которое не требует отдельного UAC).
     """
-    if not is_frozen():
-        # В режиме разработки (python.exe из консоли) файрвол обычно уже
-        # разрешён — интерпретатор используется для множества других
-        # задач, и лишний UAC-запрос тут скорее мешает, чем помогает.
+    try:
+        import ctypes
+        params = f'advfirewall firewall delete rule name="{RULE_NAME}"'
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", "netsh", params, None, 0
+        )
+        return int(result) > 32
+    except Exception as e:
+        print(f"Брандмауэр: не удалось запустить elevated-удаление — {e}")
+        return False
+
+
+def _rule_program_path():
+    """
+    Возвращает путь программы, прописанный в правиле RULE_NAME (verbose-вывод
+    netsh), либо None если правило не найдено/не удалось распарсить.
+    Не требует прав администратора.
+    """
+    try:
+        result = subprocess.run(
+            ["netsh", "advfirewall", "firewall", "show", "rule",
+             f"name={RULE_NAME}", "verbose"],
+            capture_output=True, text=True, timeout=10,
+            **_no_window_kwargs(),
+        )
+        if result.returncode != 0:
+            return None
+        for line in result.stdout.splitlines():
+            # Строка вида "Программа:            C:\\path\\to\\app.exe"
+            if line.strip().lower().startswith(("программа:", "program:")):
+                return line.split(":", 1)[1].strip()
+    except Exception:
+        pass
+    return None
+
+
+def repair_rule_if_stale():
+    """
+    Если правило существует, но указывает на другой .exe, чем тот, из
+    которого сейчас реально запущено приложение (частый случай — после
+    того как .exe пересобрали или перенесли в другую папку), правило
+    формально "есть" (rule_exists() -> True), но реально ничего не
+    разрешает для текущего процесса. Здесь правило удаляется и
+    добавляется заново под актуальный путь. Требует UAC (как и обычная
+    настройка) — вызывается delete + add, то есть ДВА elevated-запроса
+    подряд, поэтому вызывать это стоит, только когда путь реально
+    изменился, а не "на всякий случай" при каждом запуске.
+
+    Сравнение — с путём, который МЫ САМИ сохранили в settings.json в
+    момент последней успешной настройки (_firewall_rule_exe_path), а не
+    с текстовым выводом netsh — раньше здесь парсилась строка
+    "Программа: ..." из verbose-вывода netsh, и на некоторых
+    конфигурациях (другой язык/сборка Windows, обёрнутая длинная строка
+    и т.п.) такое сравнение могло ошибочно решить, что путь "не
+    совпадает", хотя на деле всё было в порядке — и запускало лишний
+    цикл удалить+добавить (два ненужных UAC-запроса подряд) без всякой
+    причины. Прямое сравнение с сохранённым нами же значением полностью
+    исключает эту хрупкость для обычного случая "ничего не изменилось".
+    """
+    if not rule_exists():
         return
 
     from core.tracker import load_settings, _settings_path
     import json
 
     settings = load_settings()
-    if settings.get("_firewall_setup_attempted"):
-        return
+    current_exe = _exe_path()
+    stored_path = settings.get("_firewall_rule_exe_path")
 
-    if not rule_exists():
-        add_rule_elevated()
+    if stored_path:
+        if stored_path.lower() == current_exe.lower():
+            return  # путь не менялся — правило точно наше и актуальное
+    else:
+        # Совсем старое settings.json, ещё до появления этого поля —
+        # разово сверяемся через текст netsh (единственное место, где
+        # используется прежний, менее надёжный способ), и если совпало —
+        # просто запоминаем путь на будущее, больше парсинг не понадобится.
+        parsed = _rule_program_path()
+        if parsed and parsed.lower() == current_exe.lower():
+            settings["_firewall_rule_exe_path"] = current_exe
+            try:
+                with open(_settings_path(), "w", encoding="utf-8") as f:
+                    json.dump(settings, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+            return
 
-    settings["_firewall_setup_attempted"] = True
+    delete_rule_elevated()
+    add_rule_elevated()
+    settings["_firewall_rule_exe_path"] = current_exe
     try:
         with open(_settings_path(), "w", encoding="utf-8") as f:
             json.dump(settings, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Брандмауэр: не удалось сохранить флаг попытки настройки — {e}")
+    except Exception:
+        pass
+
+
+def ensure_firewall_rule_once():
+    """
+    Вызывается один раз при старте приложения (в отдельном потоке —
+    UAC-диалог, если появится, не должен блокировать открытие окна).
+
+    Пытается настроить брандмауэр сам. Флаг "уже пробовали" ставится
+    ТОЛЬКО если правило реально подтверждено существующим после попытки —
+    если пользователь отказал в UAC (или добавление не удалось по другой
+    причине, например нет прав администратора), флаг НЕ ставится, и
+    следующий запуск приложения попробует снова автоматически.
+
+    Раньше флаг ставился безусловно сразу после запуска elevated-процесса,
+    независимо от того, нажал пользователь "Да" или "Нет" — то есть одного
+    случайного отказа в UAC (или у друга просто нет прав администратора на
+    своём компьютере) было достаточно, чтобы чат для него молча и навсегда
+    остался сломан: приложение больше никогда само не пыталось починить
+    брандмауэр, а через настройки об этом почти никто не знает. Именно
+    это, скорее всего, и есть причина "у части людей просто не работает,
+    непонятно почему" — включая случаи с общедоступными (публичными)
+    сетями: наше правило добавляется с profile=any (все профили, включая
+    публичный), но только если оно РЕАЛЬНО было добавлено, а не просто
+    "как бы попытались один раз".
+    """
+    try:
+        if not is_frozen():
+            return
+        from core.tracker import load_settings, _settings_path
+        import json
+        import time
+        settings = load_settings()
+        if settings.get("_firewall_setup_attempted"):
+            repair_rule_if_stale()
+            return
+        if not rule_exists():
+            add_rule_elevated()
+            # ShellExecuteW возвращает управление сразу после запуска
+            # elevated-процесса, не дожидаясь его завершения — короткая
+            # пауза, чтобы netsh успел отработать (или пользователь успел
+            # ответить на UAC) до проверки результата.
+            time.sleep(2.0)
+        if rule_exists():
+            settings["_firewall_setup_attempted"] = True
+            settings["_firewall_rule_exe_path"] = _exe_path()
+            try:
+                with open(_settings_path(), "w", encoding="utf-8") as f:
+                    json.dump(settings, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"Брандмауэр: не удалось сохранить флаг попытки настройки — {e}")
+        # else: правило так и не появилось (отказ в UAC / нет прав админа /
+        # другая ошибка) — флаг НЕ ставим, значит на следующем запуске
+        # приложение попробует настроить брандмауэр снова само, без
+        # необходимости лезть в настройки руками.
+    finally:
+        firewall_attempt_done.set()

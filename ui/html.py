@@ -81,7 +81,7 @@ HTML = r"""
     <div id="session-time" style="background:#1a1820;border-radius:10px;padding:10px 12px;margin-bottom:14px;border:0.5px solid rgba(255,255,255,0.06)"></div>
     <div class="section-title" id="stats-date">сегодня</div>
     <div id="stats-categories" style="margin-bottom:16px"></div>
-    <div class="section-title">топ приложений</div>
+    <div class="section-title">топ приложений <span style="text-transform:none;color:rgba(255,255,255,0.2)">(нажми на строку — переименовать/перекрасить/исключить)</span></div>
     <div id="stats-apps"></div>
     <div style="display:flex;gap:6px;margin-top:14px">
       <button class="btn btn-primary" id="btn-today" onclick="loadStats('today')" style="flex:1">Сегодня</button>
@@ -91,6 +91,56 @@ HTML = r"""
     <div class="section-title" style="margin-top:16px">история сессий</div>
     <div id="stats-sessions" style="font-size:11px;color:rgba(255,255,255,0.3)"></div>
   </div>
+
+  <!-- Окно редактирования приложения в статистике: название, категория,
+       цвет и исключение — всё в одном месте, как и просили. -->
+  <div id="stat-edit-overlay" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <div class="modal-title" id="stat-edit-title">Настройка приложения</div>
+
+      <div class="modal-row">
+        <span class="modal-label">Название</span>
+        <input class="si" id="stat-edit-name" style="width:170px">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Категория</span>
+        <select class="si" id="stat-edit-category" style="width:170px" onchange="toggleNewCategoryRow()"></select>
+      </div>
+      <div class="modal-row" id="stat-edit-newcat-row" style="display:none">
+        <span class="modal-label">Название</span>
+        <input class="si" id="stat-edit-newcat-name" style="width:170px" placeholder="Например: Стриминг">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Цвет</span>
+        <input type="color" id="stat-edit-color" class="color-input">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">🚫 Исключить из статистики</span>
+        <label class="toggle">
+          <input type="checkbox" id="stat-edit-excluded"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="confirm-btns" style="margin-top:14px">
+        <button class="confirm-btn confirm-cancel" onclick="closeStatEdit()">Отмена</button>
+        <button class="confirm-btn confirm-ok" onclick="saveStatEdit()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Подтверждение удаления строки статистики — удаляет ВСЕ дни этого
+       приложения, не только сегодняшний. -->
+  <div id="stat-delete-overlay" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <div class="confirm-text" id="stat-delete-text">Удалить это приложение из статистики?</div>
+      <div class="confirm-btns">
+        <button class="confirm-btn confirm-cancel" onclick="closeStatDelete()">Отмена</button>
+        <button class="confirm-btn confirm-ok" onclick="confirmDeleteStat()">Удалить</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- НАСТРОЙКИ -->
   <div id="page-settings">
@@ -152,24 +202,6 @@ HTML = r"""
     </div>
     <div class="settings-row">
       <span class="settings-label">
-        🌍 OpenRouter API ключ <span style="color:rgba(255,255,255,0.25)">(необязательно)</span>
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Нужен только для <b>авто-определения категории</b> новых программ (через openrouter.ai). Без ключа приложение работает как обычно — неизвестные программы попадут в категорию «другое».</span>
-        </span>
-      </span>
-      <input class="si" id="inp-openrouter-key" placeholder="sk-or-... (необязательно)" type="password"/>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        🚫 Игнорировать процессы
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Программы, которые <b>не нужно</b> учитывать в статистике и активности. Через запятую, например: <b>rvrvpnfui.exe, someapp.exe</b></span>
-        </span>
-      </span>
-      <input class="si" id="inp-extra-ignore" placeholder="proc1.exe, proc2.exe"/>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
         🕵️ Приватный режим
         <span class="help-icon" tabindex="0">?
           <span class="help-tooltip">Скрывает вкладку с историей браузера — на случай, если за компом кто-то ещё.</span>
@@ -193,10 +225,13 @@ HTML = r"""
       <span class="settings-label">
         Брандмауэр (входящие сообщения)
         <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Разрешает партнёру подключаться к тебе напрямую — без этого его сообщения будут теряться по таймауту, хотя у тебя всё выглядит подключённым. Настраивается один раз, потребует подтверждения в системном окне Windows (UAC).</span>
+          <span class="help-tooltip">Разрешает партнёру подключаться к тебе напрямую — без этого его сообщения будут теряться по таймауту, хотя у тебя всё выглядит подключённым. Обычно при первом запуске это окно (то, что с кнопкой «Разрешить доступ») покажет сама Windows — этого достаточно. Кнопки ниже — запасной вариант на случай, если это окно пропустили/закрыли: <b>Настроить</b> добавляет правило через netsh, <b>Пересоздать</b> — удаляет старое и пробует снова. Обеим для этого нужны права администратора — на обычном (не администраторском) аккаунте Windows попросит не просто «Да», а логин и пароль админа.</span>
         </span>
       </span>
-      <button class="btn" id="btn-firewall" onclick="setupFirewall()">настроить</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn" id="btn-firewall" onclick="setupFirewall()">настроить</button>
+        <button class="btn" id="btn-firewall-repair" onclick="repairFirewall()" title="Удалить и пересоздать правило заново">пересоздать</button>
+      </div>
     </div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button class="btn btn-primary" id="btn-save" onclick="saveSettings()">Сохранить</button>

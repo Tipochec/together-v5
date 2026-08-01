@@ -264,6 +264,18 @@ function setupFirewall(){
   });
 }
 
+function repairFirewall(){
+  const b = document.getElementById('btn-firewall-repair');
+  const row = b.closest('.settings-row');
+  const original = b.textContent;
+  b.textContent = 'ждём подтверждения...';
+  pywebview.api.repair_firewall().then(deleted=>{
+    b.textContent = deleted ? 'готово — жди окно Windows' : 'не удалось, повторить?';
+    if(row) row.classList.add('settings-dirty');
+    setTimeout(()=>{ b.textContent = original; }, 4000);
+  });
+}
+
 function pickAvatar(){
   pywebview.api.pick_avatar().then(uri=>{
     if(uri) renderAvatarPreview(uri);
@@ -286,9 +298,7 @@ const SETTINGS_FIELDS = {
   name:                   'inp-name',
   gender:                 'inp-gender',
   ip:                     'inp-ip',
-  openrouter_api_key:     'inp-openrouter-key',
   pairing_key:            'inp-pairing-key',
-  extra_ignore_processes: 'inp-extra-ignore',
   my_ip_override:         'inp-my-ip',
   private_mode:           'tog-private',
 };
@@ -328,9 +338,7 @@ function loadSettings(){
     document.getElementById('inp-name').value=s.name||'';
     document.getElementById('inp-gender').value=s.gender||'male';
     document.getElementById('inp-ip').value=s.ip||'';
-    document.getElementById('inp-openrouter-key').value=s.openrouter_api_key||'';
     document.getElementById('inp-pairing-key').value=s.pairing_key||'';
-    document.getElementById('inp-extra-ignore').value=(s.extra_ignore_processes||[]).join(', ');
     document.getElementById('inp-my-ip').value=s.my_ip||'';
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
@@ -347,15 +355,11 @@ function loadSettings(){
 }
 
 function saveSettings(){
-  const extraIgnore = document.getElementById('inp-extra-ignore').value
-    .split(',').map(s=>s.trim()).filter(Boolean);
   pywebview.api.save_settings({
     name:document.getElementById('inp-name').value,
     gender:document.getElementById('inp-gender').value,
     ip:document.getElementById('inp-ip').value,
-    openrouter_api_key:document.getElementById('inp-openrouter-key').value,
     pairing_key:document.getElementById('inp-pairing-key').value,
-    extra_ignore_processes:extraIgnore,
     my_ip_override:document.getElementById('inp-my-ip').value,
     private_mode:document.getElementById('tog-private').checked,
   }).then(()=>{
@@ -427,10 +431,13 @@ function loadTimeStats(){
   }).catch(()=>{});
 }
 
+let _statsAppsCache = [];
+
 function loadStats(period){
   document.getElementById('btn-today').className='btn'+(period==='today'?' btn-primary':'');
   document.getElementById('btn-week').className ='btn'+(period==='week' ?' btn-primary':'');
   document.getElementById('btn-all').className  ='btn'+(period==='all'  ?' btn-primary':'');
+  window._lastStatsPeriod = period;
   pywebview.api.get_stats(period).then(data=>{
     document.getElementById('stats-date').textContent=
       period==='today'?'сегодня':(period==='week'?'последние 7 дней':'за всё время (топ-30)');
@@ -451,18 +458,116 @@ function loadStats(period){
                   border-radius:2px;transition:width .5s ease"></div>
               </div></div>`;
           }).join('');
+
+    _statsAppsCache = data.apps || [];
     document.getElementById('stats-apps').innerHTML=
-      (data.apps||[]).map((a,i)=>{
-        const color=CAT_COLORS[a.category]||'rgba(255,255,255,0.2)';
-        return `<div class="tl-item" style="margin-bottom:5px">
-          <div style="font-size:11px;color:rgba(255,255,255,0.2);min-width:16px">${i+1}</div>
-          <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;margin-top:3px"></div>
-          <div style="flex:1;font-size:12px;color:rgba(255,255,255,0.7)">${a.app}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.3)">${fmtTime(a.seconds)}</div>
-        </div>`;
-      }).join('');
+      _statsAppsCache.length===0
+        ? '<div style="color:rgba(255,255,255,0.2);font-size:12px">нет данных</div>'
+        : _statsAppsCache.map((a,i)=>{
+            const color = a.color || CAT_COLORS[a.category] || 'rgba(255,255,255,0.2)';
+            const label = a.display_name || a.app;
+            return `<div class="tl-item stat-row" style="margin-bottom:5px;cursor:pointer" onclick="openStatEdit(${i})">
+              <div style="font-size:11px;color:rgba(255,255,255,0.2);min-width:16px">${i+1}</div>
+              <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;margin-top:3px"></div>
+              <div style="flex:1;font-size:12px;color:rgba(255,255,255,0.7)">${escapeHtml(label)}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.3)">${fmtTime(a.seconds)}</div>
+              <button class="stat-del-btn" title="Удалить из статистики" onclick="event.stopPropagation();promptDeleteStat(${i})">✕</button>
+            </div>`;
+          }).join('');
   }).catch(()=>{});
 }
+
+// ── Редактирование/исключение приложения в статистике ────────────────
+function openStatEdit(i){
+  const a = _statsAppsCache[i];
+  if(!a) return;
+  window._statEditApp = a.app;
+  document.getElementById('stat-edit-title').textContent = a.app;
+  document.getElementById('stat-edit-name').value = a.display_name || a.app;
+
+  const sel = document.getElementById('stat-edit-category');
+  sel.innerHTML = Object.keys(CAT_NAMES).map(k=>
+    `<option value="${k}">${CAT_NAMES[k]}</option>`).join('')
+    + `<option value="__new__">+ своя категория…</option>`;
+  sel.value = a.category;
+  document.getElementById('stat-edit-newcat-name').value = '';
+  toggleNewCategoryRow();
+
+  document.getElementById('stat-edit-color').value =
+    (a.color || CAT_COLORS[a.category] || '#a89ef0');
+
+  pywebview.api.get_stat_customization(a.app).then(c=>{
+    document.getElementById('stat-edit-excluded').checked = !!(c && c.excluded);
+  });
+
+  document.getElementById('stat-edit-overlay').style.display = 'flex';
+}
+
+function closeStatEdit(){
+  document.getElementById('stat-edit-overlay').style.display = 'none';
+}
+
+function toggleNewCategoryRow(){
+  const sel = document.getElementById('stat-edit-category');
+  const row = document.getElementById('stat-edit-newcat-row');
+  if(row) row.style.display = (sel.value === '__new__') ? 'flex' : 'none';
+}
+
+function saveStatEdit(){
+  const app = window._statEditApp;
+  if(!app) return;
+  const sel = document.getElementById('stat-edit-category');
+  const color = document.getElementById('stat-edit-color').value;
+
+  const finish = (categoryKey) => {
+    const data = {
+      display_name: document.getElementById('stat-edit-name').value.trim(),
+      category:     categoryKey,
+      color:        color,
+      excluded:     document.getElementById('stat-edit-excluded').checked,
+    };
+    pywebview.api.save_stat_customization(app, data).then(()=>{
+      closeStatEdit();
+      loadStats(window._lastStatsPeriod || 'today');
+    });
+  };
+
+  if(sel.value === '__new__'){
+    const name = document.getElementById('stat-edit-newcat-name').value.trim();
+    if(!name) return;  // без названия новую категорию не создаём
+    pywebview.api.add_custom_category(name, color).then(cat=>{
+      if(!cat) return;
+      CAT_NAMES[cat.key]  = cat.name;
+      CAT_COLORS[cat.key] = cat.color;
+      finish(cat.key);
+    });
+  } else {
+    finish(sel.value);
+  }
+}
+
+function promptDeleteStat(i){
+  const a = _statsAppsCache[i];
+  if(!a) return;
+  window._statDeleteApp = a.app;
+  document.getElementById('stat-delete-text').textContent =
+    `Удалить «${a.display_name || a.app}» из статистики? Удалятся все дни, не только сегодня.`;
+  document.getElementById('stat-delete-overlay').style.display = 'flex';
+}
+
+function closeStatDelete(){
+  document.getElementById('stat-delete-overlay').style.display = 'none';
+}
+
+function confirmDeleteStat(){
+  const app = window._statDeleteApp;
+  if(!app) return;
+  pywebview.api.delete_stat(app).then(()=>{
+    closeStatDelete();
+    loadStats(window._lastStatsPeriod || 'today');
+  });
+}
+
 
 function tick(){
   if(!window.pywebview) return;
@@ -488,7 +593,22 @@ function tick(){
   }).catch(()=>{});
 }
 
-window.addEventListener('pywebviewready',()=>{ tick(); setInterval(tick,1500); });
+window.addEventListener('pywebviewready',()=>{
+  tick(); setInterval(tick,1500);
+  loadCustomCategories();
+});
+
+// Категории, которые пользователь добавил сам через "+ своя категория" в
+// окне редактирования приложения в статистике — подмешиваем поверх
+// встроенных CAT_NAMES/CAT_COLORS один раз при старте.
+function loadCustomCategories(){
+  pywebview.api.get_custom_categories().then(cats=>{
+    Object.entries(cats||{}).forEach(([key,c])=>{
+      CAT_NAMES[key]  = c.name;
+      CAT_COLORS[key] = c.color;
+    });
+  }).catch(()=>{});
+}
 
 function openChat(){
   setChatBadge(false);           // открываем чат — считаем что всё прочитано
