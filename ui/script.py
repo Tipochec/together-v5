@@ -637,6 +637,11 @@ function tick(){
       updateCard('her',s.partner||{},false);
       updateTimeline(s.my_history,[],myGender,herGender);
     }
+    if(!document.hidden && !_windowIsHidden && _pendingHeartSender){
+      const s = _pendingHeartSender;
+      _pendingHeartSender = null;
+      setTimeout(()=>triggerHeartCelebration(s), 200);
+    }
   }).catch(()=>{});
 }
 
@@ -680,11 +685,29 @@ function sendHeartPing(){
   }
 }
 
+let _windowIsHidden = false;
 let _pendingHeartSender = null;
+
+function onWindowHidden(){
+  _windowIsHidden = true;
+}
+
+function onWindowRestored(){
+  _windowIsHidden = false;
+  if(_pendingHeartSender){
+    const s = _pendingHeartSender;
+    _pendingHeartSender = null;
+    setTimeout(()=>triggerHeartCelebration(s), 250);
+  }
+}
+
+function queuePendingHeart(senderName){
+  _pendingHeartSender = senderName || 'Партнёр';
+}
 
 function onHeartReceived(senderName){
   const sender = senderName || 'Партнёр';
-  if (document.hidden) {
+  if (document.hidden || _windowIsHidden) {
     _pendingHeartSender = sender;
   } else {
     triggerHeartCelebration(sender);
@@ -713,18 +736,24 @@ function triggerHeartCelebration(senderName){
 }
 
 window.addEventListener('focus', ()=>{
+  _windowIsHidden = false;
   if(_pendingHeartSender){
     const s = _pendingHeartSender;
     _pendingHeartSender = null;
-    setTimeout(()=>triggerHeartCelebration(s), 300);
+    setTimeout(()=>triggerHeartCelebration(s), 250);
   }
 });
 
 document.addEventListener('visibilitychange', ()=>{
-  if(!document.hidden && _pendingHeartSender){
-    const s = _pendingHeartSender;
-    _pendingHeartSender = null;
-    setTimeout(()=>triggerHeartCelebration(s), 300);
+  if(!document.hidden){
+    _windowIsHidden = false;
+    if(_pendingHeartSender){
+      const s = _pendingHeartSender;
+      _pendingHeartSender = null;
+      setTimeout(()=>triggerHeartCelebration(s), 250);
+    }
+  } else {
+    _windowIsHidden = true;
   }
 });
 

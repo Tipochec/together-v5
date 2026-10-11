@@ -55,6 +55,11 @@ def _warn_already_running():
     print(msg)
     try:
         import ctypes
+        hwnd = ctypes.windll.user32.FindWindowW(None, "Together")
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+            return
         ctypes.windll.user32.MessageBoxW(0, msg, "Together", 0x30)  # MB_ICONWARNING
     except Exception:
         pass

@@ -30,6 +30,8 @@ _window  = None
 _stats   = None
 _chat_window = None
 _quitting = False  # True только когда реально выходим из приложения (трей → Закрыть)
+_is_window_hidden = True
+_pending_heart = None
 
 
 class WindowAPI:
@@ -273,11 +275,23 @@ class WindowAPI:
         return _get_log(lines)
 
     def hide_window(self):
+        global _is_window_hidden
+        _is_window_hidden = True
         if _window:
+            try:
+                _window.evaluate_js("onWindowHidden();")
+            except Exception:
+                pass
             _window.hide()
 
     def minimize_window(self):
+        global _is_window_hidden
+        _is_window_hidden = True
         if _window:
+            try:
+                _window.evaluate_js("onWindowHidden();")
+            except Exception:
+                pass
             _window.minimize()
 
     def send_heart(self):
@@ -378,8 +392,35 @@ def _do_quit():
 
 
 def open_window():
+    global _is_window_hidden, _pending_heart
+    _is_window_hidden = False
     if _window:
-        _window.show()
+        try:
+            _window.show()
+            _window.restore()
+        except Exception:
+            pass
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.FindWindowW(None, "Together")
+            if hwnd:
+                ctypes.windll.user32.ShowWindow(hwnd, 9)
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+        except Exception:
+            pass
+        try:
+            _window.evaluate_js("onWindowRestored();")
+        except Exception:
+            pass
+        if _pending_heart:
+            sender = _pending_heart
+            _pending_heart = None
+            try:
+                import json
+                js_sender = json.dumps(sender, ensure_ascii=False)
+                threading.Timer(0.25, lambda: _window.evaluate_js(f"triggerHeartCelebration({js_sender});")).start()
+            except Exception:
+                pass
         
 def open_chat_window():
     global _chat_window
@@ -463,17 +504,25 @@ def run_webview_loop(tracker, network, stats=None):
     network.on_message(_on_incoming_message)
 
     def _on_incoming_heart(data):
+        global _pending_heart, _is_window_hidden
         sender = data.get("sender") or "Партнёр"
         import json
         js_sender = json.dumps(sender, ensure_ascii=False)
         if _window:
-            try:
-                _window.evaluate_js(f"onHeartReceived({js_sender})")
-            except Exception:
-                pass
+            if _is_window_hidden:
+                _pending_heart = sender
+                try:
+                    _window.evaluate_js(f"queuePendingHeart({js_sender});")
+                except Exception:
+                    pass
+            else:
+                try:
+                    _window.evaluate_js(f"onHeartReceived({js_sender});")
+                except Exception:
+                    _pending_heart = sender
         if _chat_window:
             try:
-                _chat_window.evaluate_js(f"onHeartReceived({js_sender})")
+                _chat_window.evaluate_js(f"onHeartReceived({js_sender});")
             except Exception:
                 pass
         from core.notifications import play_chat_sound
