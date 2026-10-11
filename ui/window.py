@@ -463,9 +463,12 @@ def run_webview_loop(tracker, network, stats=None):
     network.on_message(_on_incoming_message)
 
     def _on_incoming_heart(data):
+        sender = data.get("sender") or "Партнёр"
         if _window:
             try:
-                _window.evaluate_js("onHeartReceived()")
+                import json
+                js_sender = json.dumps(sender, ensure_ascii=False)
+                _window.evaluate_js(f"onHeartReceived({js_sender})")
             except Exception:
                 pass
         from core.notifications import play_chat_sound

@@ -79,13 +79,29 @@ CSS = r"""
   .tl-item{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;
     background:#1a1820;border-radius:9px;border:0.5px solid rgba(255,255,255,0.05)}
   .tl-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px}
-  .tl-dot-you{background:#534ab7}.tl-dot-her{background:#d4537e}
+  .tl-dot-you,.tl-dot-male{background:#534ab7}
+  .tl-dot-her,.tl-dot-female{background:#d4537e}
   .tl-time{font-size:11px;color:rgba(255,255,255,0.2);min-width:36px;flex-shrink:0}
   .tl-app{font-size:12px;color:rgba(255,255,255,0.6);word-break:break-word;line-height:1.4}
   @keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
   .tl-item-new{animation:slideIn 0.25s ease}
   @keyframes fadeUpdate{0%{background:rgba(83,74,183,0.15)}100%{background:#1a1820}}
   .card-updated{animation:fadeUpdate 0.8s ease}
+  @keyframes bannerPop{
+    0%{opacity:0;transform:translate(-50%, -20px) scale(0.9)}
+    15%{opacity:1;transform:translate(-50%, 0) scale(1.05)}
+    25%{opacity:1;transform:translate(-50%, 0) scale(1)}
+    85%{opacity:1;transform:translate(-50%, 0) scale(1)}
+    100%{opacity:0;transform:translate(-50%, -15px) scale(0.95)}
+  }
+  .heart-banner{
+    position:fixed;top:48px;left:50%;transform:translateX(-50%);
+    background:rgba(212,83,126,0.92);color:#fff;
+    padding:8px 16px;border-radius:24px;font-size:12px;font-weight:600;
+    display:flex;align-items:center;gap:8px;
+    box-shadow:0 8px 24px rgba(212,83,126,0.4);
+    z-index:9999;pointer-events:none;animation:bannerPop 3.2s ease-in-out forwards;
+  }
   #page-settings,#page-stats{display:none}
   .settings-row{display:flex;justify-content:space-between;align-items:center;
     padding:11px 0 11px 10px;margin-left:-10px;border-bottom:0.5px solid rgba(255,255,255,0.05);

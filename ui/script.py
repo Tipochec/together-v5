@@ -186,27 +186,29 @@ function updateCard(prefix,data,online){
 }
 
 let _prevFirst={you:'',her:''};
-function updateTimeline(myH,herH){
-  const renderCol=(items,who)=>{
+function updateTimeline(myH,herH,myGender,herGender){
+  const renderCol=(items,gender)=>{
+    const dotClass = gender === 'female' ? 'tl-dot-female' : 'tl-dot-male';
     if(!items||!items.length) return `
       <div class="tl-item">
         <div class="tl-time">—</div>
-        <div class="tl-dot tl-dot-${who}"></div>
+        <div class="tl-dot ${dotClass}"></div>
         <div class="tl-app">пусто</div>
       </div>`;
     return items.slice(0,8).map((h,i)=>{
-      const isNew=i===0&&(h.app+h.time)!==_prevFirst[who];
+      const whoKey = gender === 'female' ? 'her' : 'you';
+      const isNew=i===0&&(h.app+h.time)!==_prevFirst[whoKey];
       const app = escapeHtml(h.app);
       const title = h.title ? ' — '+escapeHtml(h.title) : '';
       return `<div class="tl-item${isNew?' tl-item-new':''}">
         <div class="tl-time">${escapeHtml(h.time)}</div>
-        <div class="tl-dot tl-dot-${who}"></div>
+        <div class="tl-dot ${dotClass}"></div>
         <div class="tl-app">${app}${title}</div>
       </div>`;
     }).join('');
   };
-  document.getElementById('timeline-you').innerHTML=renderCol(myH,'you');
-  document.getElementById('timeline-her').innerHTML=renderCol(herH,'her');
+  document.getElementById('timeline-you').innerHTML=renderCol(myH,myGender||'male');
+  document.getElementById('timeline-her').innerHTML=renderCol(herH,herGender||'female');
   if(myH&&myH[0])  _prevFirst.you=myH[0].app+myH[0].time;
   if(herH&&herH[0]) _prevFirst.her=herH[0].app+herH[0].time;
 }
@@ -620,23 +622,20 @@ function confirmDeleteStat(){
 function tick(){
   if(!window.pywebview) return;
   pywebview.api.get_state().then(s=>{
+    const myGender = (s.my && s.my.gender) || 'male';
+    const herGender = (s.partner && s.partner.gender) || (myGender === 'male' ? 'female' : 'male');
     if(s.my) updateCard('my',s.my,true);
     updateStatus(s.connected);
     updatePartnerStatus(s.partner_status);
     updateMyOnlineSince(s.my_online_since);
     const statsPage = document.getElementById('page-stats');
     if(statsPage && statsPage.style.display === 'block') loadTimeStats();
-    // Раньше тут проверялось только "есть ли вообще когда-либо полученные
-    // данные о партнёре" (s.partner) — из-за этого карточка навсегда
-    // застревала на последнем известном приложении/вкладке даже после
-    // того, как партнёр вышел из сети. Теперь online по-настоящему зависит
-    // от актуального connected-статуса.
     if(s.partner && s.connected){
       updateCard('her',s.partner,true);
-      updateTimeline(s.my_history,s.partner.history||[]);
+      updateTimeline(s.my_history,s.partner.history||[],myGender,herGender);
     } else {
       updateCard('her',s.partner||{},false);
-      updateTimeline(s.my_history,[]);
+      updateTimeline(s.my_history,[],myGender,herGender);
     }
   }).catch(()=>{});
 }
@@ -676,57 +675,75 @@ function sendHeartPing(){
   }
   spawnHeartAnimation();
   pywebview.api.send_heart().then(ok=>{
-    // heart sent
-  }).catch(()=>{});
+    console.log('Heart sent result:', ok);
+  }).catch(e=>{
+    console.error('Heart send error:', e);
+  });
 }
 
-let _pendingHeart = false;
+let _pendingHeartSender = null;
 
-function onHeartReceived(){
+function onHeartReceived(senderName){
+  const sender = senderName || 'Партнёр';
   if (document.hidden) {
-    _pendingHeart = true;
+    _pendingHeartSender = sender;
   } else {
-    triggerHeartCelebration();
+    triggerHeartCelebration(sender);
   }
 }
 
-function triggerHeartCelebration(){
+function showHeartBanner(text){
+  const old = document.querySelector('.heart-banner');
+  if(old) old.remove();
+  const banner = document.createElement('div');
+  banner.className = 'heart-banner';
+  banner.innerHTML = `<span>❤️</span> <span>${escapeHtml(text)}</span>`;
+  document.body.appendChild(banner);
+  setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 3200);
+}
+
+function triggerHeartCelebration(senderName){
+  const name = senderName || 'Партнёр';
+  showHeartBanner(name + ' думает о тебе! ❤️');
   spawnHeartAnimation();
   const card = document.getElementById('her-card');
   if(card){
+    card.classList.remove('offline-card');
     card.classList.add('card-updated');
-    setTimeout(()=>card.classList.remove('card-updated'), 1000);
+    setTimeout(()=>card.classList.remove('card-updated'), 1200);
   }
 }
 
 window.addEventListener('focus', ()=>{
-  if(_pendingHeart){
-    _pendingHeart = false;
-    setTimeout(triggerHeartCelebration, 300);
+  if(_pendingHeartSender){
+    const s = _pendingHeartSender;
+    _pendingHeartSender = null;
+    setTimeout(()=>triggerHeartCelebration(s), 300);
   }
 });
 
 document.addEventListener('visibilitychange', ()=>{
-  if(!document.hidden && _pendingHeart){
-    _pendingHeart = false;
-    setTimeout(triggerHeartCelebration, 300);
+  if(!document.hidden && _pendingHeartSender){
+    const s = _pendingHeartSender;
+    _pendingHeartSender = null;
+    setTimeout(()=>triggerHeartCelebration(s), 300);
   }
 });
 
 function spawnHeartAnimation(){
   const container = document.getElementById('heart-burst');
   if(!container) return;
-  const hearts = ['❤️', '💖', '💕', '✨', '💓'];
-  for(let i = 0; i < 4; i++){
+  const hearts = ['❤️', '💖', '💕', '✨', '💓', '💗'];
+  for(let i = 0; i < 6; i++){
     setTimeout(()=>{
       const el = document.createElement('div');
       el.className = 'flying-heart';
       el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
-      el.style.left = (20 + Math.random() * 60) + '%';
-      el.style.top = (50 + Math.random() * 30) + '%';
+      el.style.left = (15 + Math.random() * 70) + '%';
+      el.style.top = (40 + Math.random() * 40) + '%';
       container.appendChild(el);
       setTimeout(()=>el.remove(), 1200);
-    }, i * 150);
+    }, i * 120);
   }
 }
 
