@@ -1,7 +1,7 @@
 """
 Сетевой модуль - связь между двумя ПК через сокеты
 """
-import json, threading, time, socket, os, uuid
+import json, threading, time, socket, os, sys, uuid
 from .chat import ChatManager
 from core.paths import data_path
 from datetime import datetime
@@ -23,10 +23,13 @@ _throttle_lock = threading.Lock()
 
 def _log(msg):
     """Пишет строку с таймстампом в network_debug.log (и в stdout — видно
-    при запуске из консоли). Тот же формат, что и у _log в ai_classify.py,
-    для единообразия."""
+    при запуске из консоли)."""
     line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
-    print(line)
+    if getattr(sys, "stdout", None) is not None:
+        try:
+            print(line)
+        except Exception:
+            pass
     try:
         with _log_lock:
             with open(LOG_PATH, "a", encoding="utf-8") as f:
@@ -684,26 +687,27 @@ class NetworkManager:
 
     def send_heart(self):
         """Отправляет сигнал сердечка ('думаю о тебе') партнёру"""
-        settings = load_settings()
-        packet = {
-            "type": "heart",
-            "pairing_key": (settings.get("pairing_key") or "").strip(),
-            "device_id": settings.get("device_id") or "",
-            "sender": settings.get("name") or "Партнёр",
-            "time": datetime.now().isoformat(),
-        }
-        sock = self._client_socket
-        if sock:
-            if self._connected:
-                _log(f"HEART: отправлен сигнал сердечка ❤️ (от {packet['sender']} -> партнёр в сети)")
-            else:
-                _log(f"HEART: сигнал сердечка ❤️ отправлен на сервер (ждём партнёра онлайн)")
-            threading.Thread(
-                target=self._send_raw, args=(sock, packet), daemon=True
-            ).start()
-            return True
-        _log("HEART: не удалось отправить сердечко — нет связи с сервером")
-        return False
+        try:
+            settings = load_settings()
+            packet = {
+                "type": "heart",
+                "pairing_key": (settings.get("pairing_key") or "").strip(),
+                "device_id": settings.get("device_id") or "",
+                "sender": settings.get("name") or "Я",
+                "time": datetime.now().isoformat(),
+            }
+            sock = self._client_socket
+            if sock:
+                threading.Thread(
+                    target=self._send_raw, args=(sock, packet), daemon=True
+                ).start()
+                _log(f"HEART: сигнал сердечка отправлен от {packet['sender']} партнёру")
+                return True
+            _log("HEART: не удалось отправить сердечко — нет активного подключения к серверу")
+            return False
+        except Exception as e:
+            _log(f"HEART: ошибка отправки: {e}")
+            return False
 
     def _process(self, raw):
         try:
@@ -808,12 +812,13 @@ class NetworkManager:
 
     def _process_heart(self, data):
         self._last_seen = time.time()
-        _log(f"HEART: получено сердечко от {data.get('sender') or 'Партнёр'}")
-        for cb in self._on_heart:
+        sender = data.get("sender") or "Партнёр"
+        _log(f"HEART: получено сердечко от {sender}")
+        for cb in list(self._on_heart):
             try:
                 cb(data)
-            except Exception:
-                pass
+            except Exception as e:
+                _log(f"HEART: ошибка в обработчике on_heart: {e}")
 
     def _process_partner_offline(self, data):
         _log("RELAY: сервер сообщил, что партнёр отключился")

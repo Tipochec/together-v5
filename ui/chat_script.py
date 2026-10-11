@@ -261,4 +261,50 @@ window.addEventListener("pywebviewready", () => {
         input.addEventListener("input", autoResizeMessageBox);
     }
 });
+
+function sendHeartPing(){
+  const btn = document.getElementById('chat-btn-heart');
+  if(btn){
+    btn.classList.add('sent');
+    setTimeout(()=>btn.classList.remove('sent'), 700);
+  }
+  spawnHeartAnimation();
+  showHeartBanner('Ты думаешь о ней ❤️');
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.send_heart){
+    window.pywebview.api.send_heart().catch(e=>console.error('Heart send error:', e));
+  }
+}
+
+function onHeartReceived(senderName){
+  const sender = senderName || 'Партнёр';
+  showHeartBanner(sender + ' думает о тебе! ❤️');
+  spawnHeartAnimation();
+}
+
+function showHeartBanner(text){
+  const old = document.querySelector('.heart-banner');
+  if(old) old.remove();
+  const banner = document.createElement('div');
+  banner.className = 'heart-banner';
+  banner.innerHTML = `<span>❤️</span> <span>${escapeHtml(text)}</span>`;
+  document.body.appendChild(banner);
+  setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 3200);
+}
+
+function spawnHeartAnimation(){
+  const container = document.getElementById('heart-burst');
+  if(!container) return;
+  const hearts = ['❤️', '💖', '💕', '✨', '💓', '💗'];
+  for(let i = 0; i < 7; i++){
+    setTimeout(()=>{
+      const el = document.createElement('div');
+      el.className = 'flying-heart';
+      el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+      el.style.left = (15 + Math.random() * 70) + '%';
+      el.style.top = (40 + Math.random() * 40) + '%';
+      container.appendChild(el);
+      setTimeout(()=>el.remove(), 1200);
+    }, i * 110);
+  }
+}
 """

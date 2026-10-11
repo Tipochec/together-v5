@@ -20,13 +20,19 @@ HTML = r"""
 💬 Чат
 </div>
 
-<button class="close" onclick="clearChat()" title="Очистить историю (только у себя)" style="margin-right:4px">
+<div style="display:flex;align-items:center;gap:4px">
+<button class="close btn-heart-chat" id="chat-btn-heart" onclick="sendHeartPing()" title="Отправить сердечко: думаю о тебе ❤️">
+❤️
+</button>
+
+<button class="close" onclick="clearChat()" title="Очистить историю (только у себя)">
 🗑
 </button>
 
-<button class="close" onclick="pywebview.api.close_chat()">
+<button class="close" onclick="pywebview.api.close_chat()" title="Закрыть">
 ✕
 </button>
+</div>
 
 </div>
 
@@ -81,7 +87,7 @@ onclick="sendMessage()">
       <button class="confirm-btn confirm-ok" onclick="confirmClearChat()">Очистить</button>
     </div>
   </div>
-</div>
+<div id="heart-burst" class="heart-burst"></div>
 
 <script>
 

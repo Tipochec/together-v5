@@ -27,13 +27,17 @@ CSS = r"""
   .gender-female{border-top-color:#d4537e !important}
   .offline-card{opacity:.4;filter:grayscale(40%)}
   .btn-heart-ping{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;
-    border:none;background:rgba(212,83,126,0.15);color:#d4537e;cursor:pointer;font-size:14px;
-    display:flex;align-items:center;justify-content:center;transition:all .2s ease;outline:none}
-  .btn-heart-ping:hover{background:rgba(212,83,126,0.35);transform:scale(1.15)}
+    border:none;background:rgba(212,83,126,0.18);color:#d4537e;cursor:pointer;font-size:14px;
+    display:flex;align-items:center;justify-content:center;transition:all .2s ease;outline:none;
+    z-index:10;opacity:1 !important;filter:none !important}
+  .btn-heart-ping:hover{background:rgba(212,83,126,0.4);transform:scale(1.2)}
   .btn-heart-ping:active{transform:scale(0.9)}
   .btn-heart-ping.sent{animation:heartBeat 0.6s ease}
+  .btn-heart-titlebar{font-size:13px;transition:transform .2s ease}
+  .btn-heart-titlebar:hover{transform:scale(1.25)}
+  .btn-heart-titlebar.sent{animation:heartBeat 0.6s ease}
   @keyframes heartBeat{0%{transform:scale(1)}30%{transform:scale(1.4)}60%{transform:scale(0.9)}100%{transform:scale(1)}}
-  .heart-burst{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:14px}
+  .heart-burst{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:99999}
   .flying-heart{position:absolute;font-size:18px;animation:flyUp 1.2s ease-out forwards}
   @keyframes flyUp{0%{opacity:1;transform:translateY(0) scale(0.6)}50%{opacity:0.9;transform:translateY(-30px) scale(1.2)}100%{opacity:0;transform:translateY(-65px) scale(1.5)}}
   .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;

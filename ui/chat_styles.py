@@ -357,4 +357,65 @@ body{
     background:#d4537e;
     color:white;
 }
+
+.btn-heart-chat{
+    font-size:14px;
+    transition:transform .2s ease;
+}
+.btn-heart-chat:hover{
+    transform:scale(1.25);
+    background:rgba(212,83,126,0.18) !important;
+}
+.btn-heart-chat.sent{
+    animation:heartBeat 0.6s ease;
+}
+@keyframes heartBeat{
+    0%{transform:scale(1)}
+    30%{transform:scale(1.4)}
+    60%{transform:scale(0.9)}
+    100%{transform:scale(1)}
+}
+.heart-burst{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+    z-index:99999;
+}
+.flying-heart{
+    position:absolute;
+    font-size:18px;
+    animation:flyUp 1.2s ease-out forwards;
+}
+@keyframes flyUp{
+    0%{opacity:1;transform:translateY(0) scale(0.6)}
+    50%{opacity:0.9;transform:translateY(-30px) scale(1.2)}
+    100%{opacity:0;transform:translateY(-65px) scale(1.5)}
+}
+@keyframes bannerPop{
+    0%{opacity:0;transform:translate(-50%, -20px) scale(0.9)}
+    15%{opacity:1;transform:translate(-50%, 0) scale(1.05)}
+    25%{opacity:1;transform:translate(-50%, 0) scale(1)}
+    85%{opacity:1;transform:translate(-50%, 0) scale(1)}
+    100%{opacity:0;transform:translate(-50%, -15px) scale(0.95)}
+}
+.heart-banner{
+    position:fixed;
+    top:48px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(212,83,126,0.95);
+    color:#fff;
+    padding:8px 18px;
+    border-radius:24px;
+    font-size:13px;
+    font-weight:600;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    box-shadow:0 8px 24px rgba(212,83,126,0.45);
+    z-index:999999;
+    pointer-events:none;
+    animation:bannerPop 3.2s ease-in-out forwards;
+}
 """
