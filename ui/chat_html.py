@@ -21,10 +21,6 @@ HTML = r"""
 </div>
 
 <div style="display:flex;align-items:center;gap:4px">
-<button class="close btn-heart-chat" id="chat-btn-heart" onclick="sendHeartPing()" title="Отправить сердечко: думаю о тебе ❤️">
-❤️
-</button>
-
 <button class="close" onclick="clearChat()" title="Очистить историю (только у себя)">
 🗑
 </button>

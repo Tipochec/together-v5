@@ -262,22 +262,8 @@ window.addEventListener("pywebviewready", () => {
     }
 });
 
-function sendHeartPing(){
-  const btn = document.getElementById('chat-btn-heart');
-  if(btn){
-    btn.classList.add('sent');
-    setTimeout(()=>btn.classList.remove('sent'), 700);
-  }
-  spawnHeartAnimation();
-  showHeartBanner('Ты думаешь о ней ❤️');
-  if(window.pywebview && window.pywebview.api && window.pywebview.api.send_heart){
-    window.pywebview.api.send_heart().catch(e=>console.error('Heart send error:', e));
-  }
-}
-
 function onHeartReceived(senderName){
-  const sender = senderName || 'Партнёр';
-  showHeartBanner(sender + ' думает о тебе! ❤️');
+  showHeartBanner('ОХАЁ)');
   spawnHeartAnimation();
 }
 

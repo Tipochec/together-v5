@@ -33,9 +33,6 @@ CSS = r"""
   .btn-heart-ping:hover{background:rgba(212,83,126,0.4);transform:scale(1.2)}
   .btn-heart-ping:active{transform:scale(0.9)}
   .btn-heart-ping.sent{animation:heartBeat 0.6s ease}
-  .btn-heart-titlebar{font-size:13px;transition:transform .2s ease}
-  .btn-heart-titlebar:hover{transform:scale(1.25)}
-  .btn-heart-titlebar.sent{animation:heartBeat 0.6s ease}
   @keyframes heartBeat{0%{transform:scale(1)}30%{transform:scale(1.4)}60%{transform:scale(0.9)}100%{transform:scale(1)}}
   .heart-burst{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:99999}
   .flying-heart{position:absolute;font-size:18px;animation:flyUp 1.2s ease-out forwards}

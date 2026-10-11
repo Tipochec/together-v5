@@ -358,23 +358,6 @@ body{
     color:white;
 }
 
-.btn-heart-chat{
-    font-size:14px;
-    transition:transform .2s ease;
-}
-.btn-heart-chat:hover{
-    transform:scale(1.25);
-    background:rgba(212,83,126,0.18) !important;
-}
-.btn-heart-chat.sent{
-    animation:heartBeat 0.6s ease;
-}
-@keyframes heartBeat{
-    0%{transform:scale(1)}
-    30%{transform:scale(1.4)}
-    60%{transform:scale(0.9)}
-    100%{transform:scale(1)}
-}
 .heart-burst{
     position:fixed;
     inset:0;

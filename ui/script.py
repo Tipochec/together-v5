@@ -668,19 +668,15 @@ function setChatBadge(show){
 }
 
 function sendHeartPing(){
-  const btns = document.querySelectorAll('.btn-heart-ping, .btn-heart-titlebar');
-  btns.forEach(btn => {
+  const btn = document.getElementById('btn-send-heart');
+  if(btn){
     btn.classList.add('sent');
     setTimeout(()=>btn.classList.remove('sent'), 700);
-  });
+  }
   spawnHeartAnimation();
-  showHeartBanner('Ты думаешь о ней ❤️');
+  showHeartBanner('ОХАЁ)');
   if(window.pywebview && window.pywebview.api && window.pywebview.api.send_heart){
-    window.pywebview.api.send_heart().then(ok=>{
-      console.log('Heart sent result:', ok);
-    }).catch(e=>{
-      console.error('Heart send error:', e);
-    });
+    window.pywebview.api.send_heart().catch(e=>console.error('Heart send error:', e));
   }
 }
 
@@ -706,8 +702,7 @@ function showHeartBanner(text){
 }
 
 function triggerHeartCelebration(senderName){
-  const name = senderName || 'Партнёр';
-  showHeartBanner(name + ' думает о тебе! ❤️');
+  showHeartBanner('ОХАЁ)');
   spawnHeartAnimation();
   const card = document.getElementById('her-card');
   if(card){

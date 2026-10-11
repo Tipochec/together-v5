@@ -15,7 +15,6 @@ HTML = r"""
 <div class="titlebar pywebview-drag-region">
   <div class="titlebar-title"><span class="heart">♥</span> Together</div>
     <div class="titlebar-btns">
-        <button class="titlebar-btn btn-heart-titlebar" onclick="sendHeartPing()" title="Отправить сердечко: думаю о тебе ❤️">❤️</button>
         <button class="titlebar-btn" id="btn-chat" onclick="openChat()" title="Чат" style="position:relative">
           💬
           <span id="chat-badge" style="display:none;position:absolute;top:2px;right:2px;
@@ -50,7 +49,7 @@ HTML = r"""
         <div class="badge badge-idle" id="my-badge">—</div>
       </div>
       <div class="card card-her offline-card" id="her-card" style="position:relative">
-        <button id="btn-send-heart" class="btn-heart-ping" onclick="sendHeartPing()" title="Отправить сердечко: думаю о тебе ❤️">❤️</button>
+        <button id="btn-send-heart" class="btn-heart-ping" onclick="sendHeartPing()" title="ОХАЁ)">❤️</button>
         <div class="online-since" id="her-online-since"></div>
         <div class="avatar" id="her-avatar">?</div>
         <div class="card-label" id="her-label">она</div>
