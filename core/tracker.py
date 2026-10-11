@@ -175,12 +175,16 @@ class ActivityTracker:
 
                     with self._lock:
                         if prev_app and prev_app != "—":
-                            self.history.appendleft({
-                                "app":       prev_app,
-                                "title":     prev_title,
-                                "category":  CATEGORIES.get(prev_app, "other"),
-                                "timestamp": self.current["since"],
-                            })
+                            time_spent = (now - self.current["since"]).total_seconds()
+                            if prev_app == app and time_spent < 5:
+                                pass
+                            else:
+                                self.history.appendleft({
+                                    "app":       prev_app,
+                                    "title":     prev_title,
+                                    "category":  CATEGORIES.get(prev_app, "other"),
+                                    "timestamp": self.current["since"],
+                                })
                         self.current = {
                             "app":      app,
                             "title":    title,

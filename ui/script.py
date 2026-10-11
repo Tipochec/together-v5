@@ -187,7 +187,7 @@ function updateCard(prefix,data,online){
 
 let _prevFirst={you:'',her:''};
 function updateTimeline(myH,herH,myGender,herGender){
-  const renderCol=(items,gender)=>{
+  const renderCol=(items,gender,colKey)=>{
     const dotClass = gender === 'female' ? 'tl-dot-female' : 'tl-dot-male';
     if(!items||!items.length) return `
       <div class="tl-item">
@@ -195,22 +195,27 @@ function updateTimeline(myH,herH,myGender,herGender){
         <div class="tl-dot ${dotClass}"></div>
         <div class="tl-app">пусто</div>
       </div>`;
+    const topKey = (items[0].app||'') + (items[0].title||'') + (items[0].time||'');
+    const isNew = topKey !== _prevFirst[colKey];
+    _prevFirst[colKey] = topKey;
+
     return items.slice(0,8).map((h,i)=>{
-      const whoKey = gender === 'female' ? 'her' : 'you';
-      const isNew=i===0&&(h.app+h.time)!==_prevFirst[whoKey];
+      const isNewItem = (i === 0 && isNew);
       const app = escapeHtml(h.app);
       const title = h.title ? ' — '+escapeHtml(h.title) : '';
-      return `<div class="tl-item${isNew?' tl-item-new':''}">
+      return `<div class="tl-item${isNewItem?' tl-item-new':''}">
         <div class="tl-time">${escapeHtml(h.time)}</div>
         <div class="tl-dot ${dotClass}"></div>
         <div class="tl-app">${app}${title}</div>
       </div>`;
     }).join('');
   };
-  document.getElementById('timeline-you').innerHTML=renderCol(myH,myGender||'male');
-  document.getElementById('timeline-her').innerHTML=renderCol(herH,herGender||'female');
-  if(myH&&myH[0])  _prevFirst.you=myH[0].app+myH[0].time;
-  if(herH&&herH[0]) _prevFirst.her=herH[0].app+herH[0].time;
+  const youHtml = renderCol(myH,myGender||'male','you');
+  const herHtml = renderCol(herH,herGender||'female','her');
+  const elYou = document.getElementById('timeline-you');
+  const elHer = document.getElementById('timeline-her');
+  if(elYou && elYou.innerHTML !== youHtml) elYou.innerHTML = youHtml;
+  if(elHer && elHer.innerHTML !== herHtml) elHer.innerHTML = herHtml;
 }
 
 function updateStatus(c){
