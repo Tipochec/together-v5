@@ -1,12 +1,8 @@
 {
   "name": "",
-  "ip": "",
   "private_mode": false,
-  "openrouter_api_key": "",
-  "openrouter_model": "openrouter/free",
   "pairing_key": "",
   "extra_ignore_processes": [],
-  "my_ip_override": "",
   "gender": "male",
   "avatar": ""
 }

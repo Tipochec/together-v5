@@ -48,7 +48,9 @@ HTML = r"""
         <div class="card-time" id="my-time"></div>
         <div class="badge badge-idle" id="my-badge">—</div>
       </div>
-      <div class="card card-her offline-card" id="her-card">
+      <div class="card card-her offline-card" id="her-card" style="position:relative">
+        <button id="btn-send-heart" class="btn-heart-ping" onclick="sendHeartPing()" title="Отправить сердечко: думаю о тебе ❤️">❤️</button>
+        <div id="heart-burst" class="heart-burst"></div>
         <div class="online-since" id="her-online-since"></div>
         <div class="avatar" id="her-avatar">?</div>
         <div class="card-label" id="her-label">она</div>
@@ -146,7 +148,7 @@ HTML = r"""
   <div id="page-settings">
     <div class="settings-row">
       <span class="settings-label">
-        Моя аватарка
+        🖼️ Моя аватарка
         <span class="help-icon help-icon-down" tabindex="0">?
           <span class="help-tooltip">Квадратная фотка, которая видна партнёру и тебе на карточке. <b>JPG/PNG</b>, любой размер — само обрежется по центру в квадрат.</span>
         </span>
@@ -158,14 +160,19 @@ HTML = r"""
       </div>
     </div>
     <div class="settings-row">
-      <span class="settings-label">Моё имя</span>
+      <span class="settings-label">
+        👤 Моё имя
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Твоё имя или никнейм, который увидит партнёр.</span>
+        </span>
+      </span>
       <input class="si" id="inp-name" placeholder="Введи имя"/>
     </div>
     <div class="settings-row">
       <span class="settings-label">
-        Мой пол
+        ⚧ Мой пол
         <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Только влияет на <b>цвет твоей карточки</b> — у себя и у партнёра. На работу приложения не влияет.</span>
+          <span class="help-tooltip">Влияет на <b>цвет акцента твоей карточки</b> у тебя и у партнёра.</span>
         </span>
       </span>
       <select class="si" id="inp-gender">
@@ -175,36 +182,22 @@ HTML = r"""
     </div>
     <div class="settings-row">
       <span class="settings-label">
-        IP партнёра (Zerotier)
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Адрес партнёра в вашей общей <b>Zerotier</b>-сети (или другой VPN, где вы оба состоите). По нему приложение подключается к партнёру напрямую. Без этого поля чат и статус «онлайн» работать не будут.</span>
-        </span>
-      </span>
-      <input class="si" id="inp-ip" placeholder="10.147.X.X"/>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        Мой Zerotier IP
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Определяется <b>автоматически</b> — это твой адрес в общей VPN-сети, его вписывает партнёр себе в поле выше. Трогать нужно, только если автоопределение ошиблось.</span>
-        </span>
-      </span>
-      <input class="si" id="inp-my-ip" placeholder="10.147.X.X"/>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
         🔒 Ключ подключения
         <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Общий «пароль» между вашими приложениями. Без него порт связи открыт для любого в вашей сети. Придумай любую строку и впиши <b>одинаковую</b> себе и партнёру — иначе чужие пакеты будут просто отклоняться.</span>
+          <span class="help-tooltip">Общий ключ комнаты для вас двоих. Введите <b>одинаковый ключ</b> себе и партнёру, либо сгенерируйте случайный.</span>
         </span>
       </span>
-      <input class="si" id="inp-pairing-key" placeholder="общий секрет" type="password"/>
+      <div style="display:flex;gap:6px;width:60%">
+        <input class="si" id="inp-pairing-key" placeholder="общий ключ комнаты" type="text" style="flex:1"/>
+        <button class="btn" onclick="generatePairingKey()" title="Сгенерировать случайный надёжный ключ" style="padding:4px 8px;font-size:14px">🎲</button>
+        <button class="btn" onclick="copyPairingKey(this)" title="Скопировать ключ" style="padding:4px 8px;font-size:14px">📋</button>
+      </div>
     </div>
     <div class="settings-row">
       <span class="settings-label">
         🕵️ Приватный режим
         <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Скрывает вкладку с историей браузера — на случай, если за компом кто-то ещё.</span>
+          <span class="help-tooltip">Скрывает названия открытых вкладок и сайтов — отображается только название браузера.</span>
         </span>
       </span>
       <label class="toggle">
@@ -214,24 +207,12 @@ HTML = r"""
     </div>
     <div class="settings-row">
       <span class="settings-label">
-        Автозапуск с Windows
+        🚀 Автозапуск с Windows
         <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Запускает приложение автоматически при входе в Windows. Включён по умолчанию при первом запуске — дальше решение полностью твоё, приложение больше само его не перевключает.</span>
+          <span class="help-tooltip">Запускает приложение в фоне при старте системы.</span>
         </span>
       </span>
       <button class="btn" id="btn-autostart" onclick="toggleAutostart()">проверка...</button>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        Брандмауэр (входящие сообщения)
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Разрешает партнёру подключаться к тебе напрямую — без этого его сообщения будут теряться по таймауту, хотя у тебя всё выглядит подключённым. Обычно при первом запуске это окно (то, что с кнопкой «Разрешить доступ») покажет сама Windows — этого достаточно. Кнопки ниже — запасной вариант на случай, если это окно пропустили/закрыли: <b>Настроить</b> добавляет правило через netsh, <b>Пересоздать</b> — удаляет старое и пробует снова. Обеим для этого нужны права администратора — на обычном (не администраторском) аккаунте Windows попросит не просто «Да», а логин и пароль админа.</span>
-        </span>
-      </span>
-      <div style="display:flex;gap:6px">
-        <button class="btn" id="btn-firewall" onclick="setupFirewall()">настроить</button>
-        <button class="btn" id="btn-firewall-repair" onclick="repairFirewall()" title="Удалить и пересоздать правило заново">пересоздать</button>
-      </div>
     </div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button class="btn btn-primary" id="btn-save" onclick="saveSettings()">Сохранить</button>

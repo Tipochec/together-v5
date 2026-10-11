@@ -226,7 +226,8 @@ class StatsTracker:
                 psapi.GetModuleFileNameExW(handle, None, buf, sz)
                 kernel32.CloseHandle(handle)
 
-                proc = os.path.basename(buf.value).lower() if buf.value else ""
+                full_exe_path = buf.value if buf.value else ""
+                proc = os.path.basename(full_exe_path).lower() if full_exe_path else ""
                 if not proc or proc in IGNORE_PROCESSES or proc in ignore_extra:
                     return True
 
@@ -238,7 +239,7 @@ class StatsTracker:
                 if app_name not in found:
                     if app_name in excluded_apps:
                         return True
-                    found[app_name] = self._get_category(app_name)
+                    found[app_name] = self._get_category(app_name, full_exe_path)
 
             except Exception:
                 pass
@@ -250,37 +251,28 @@ class StatsTracker:
 
         return found
 
-    def _get_category(self, app_name):
+    def _get_category(self, app_name, exe_path=""):
         """
-        Категория для известных — из словаря CATEGORIES. Пользовательская
-        категория (заданная вручную в окне статистики) имеет приоритет над
-        обеими автоматиками — встроенной и AI, иначе после ручной правки
-        категория откатывалась бы на старую при каждой новой записи в БД.
-        Для неизвестных без ручной правки — спрашиваем AI (с кешем), пока
-        ответа нет — "other".
+        Категория:
+        1. Ручная настройка пользователя (высший приоритет)
+        2. Словарь известных приложений (CATEGORIES)
+        3. Умная эвристика (пути Steam/Epic/игры + метаданные .exe)
+        4. "other" по умолчанию
         """
         custom = get_app_customizations().get(app_name)
         if custom and custom.get("category"):
             return custom["category"]
 
-        cat = CATEGORIES.get(app_name)
-        if cat:
+        known = CATEGORIES.get(app_name)
+        if known and known != "other":
+            return known
+
+        if exe_path:
+            from core.classifier import classify_executable
+            _, cat = classify_executable(exe_path, app_name, known)
             return cat
 
-        try:
-            from core.ai_classify import _load_cache, classify_app
-            key = app_name.lower().strip()
-            cache = _load_cache()
-            if key in cache:
-                return cache[key]
-
-            # Не в кеше — запускаем в фоне, сейчас "other"
-            def worker():
-                classify_app(app_name, "")
-            threading.Thread(target=worker, daemon=True).start()
-            return "other"
-        except Exception:
-            return "other"
+        return known or "other"
 
     def debug_scan(self):
         """

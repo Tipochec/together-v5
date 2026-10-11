@@ -77,24 +77,34 @@ def _settings_path():
 
 
 def load_settings():
+    settings = {}
     try:
         with open(_settings_path(), "r", encoding="utf-8") as f:
-            return json.load(f)
+            settings = json.load(f)
     except FileNotFoundError:
-        return {}
+        settings = {}
     except Exception as e:
-        # Битый JSON (например неэкранированный \ в пути) раньше молча
-        # обнулял ВСЕ настройки без единого следа — теперь хотя бы видно
-        # в логе, что settings.json невалиден и почему
         try:
-            log_path = os.path.join(os.path.dirname(_settings_path()), "ai_debug.log")
+            log_path = os.path.join(os.path.dirname(_settings_path()), "network_debug.log")
             with open(log_path, "a", encoding="utf-8") as lf:
                 import time
                 lf.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] "
-                         f"SETTINGS_JSON_BROKEN error={e} — все настройки временно сброшены на дефолт!\n")
+                         f"SETTINGS_JSON_BROKEN error={e}\n")
         except Exception:
             pass
-        return {}
+        settings = {}
+
+    # Убеждаемся, что у устройства есть уникальный device_id (генерируется 1 раз)
+    if not settings.get("device_id"):
+        import uuid
+        settings["device_id"] = "dev_" + uuid.uuid4().hex[:12]
+        try:
+            with open(_settings_path(), "w", encoding="utf-8") as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    return settings
 
 
 class ActivityTracker:
@@ -146,7 +156,7 @@ class ActivityTracker:
 
         while self._running:
             try:
-                proc_name, app, title = self._get_active_window()
+                proc_name, app, title, exe_path = self._get_active_window()
                 idle_secs = self._get_idle_seconds()
                 status    = self._calc_status(idle_secs, app, title)
 
@@ -159,8 +169,9 @@ class ActivityTracker:
                 if changed:
                     now = datetime.now()
                     category = CATEGORIES.get(app)
-                    if category is None:
-                        category = self._get_ai_category(app, title)
+                    if not category or category == "other":
+                        from core.classifier import classify_executable
+                        _, category = classify_executable(exe_path, app, category)
 
                     with self._lock:
                         if prev_app and prev_app != "—":
@@ -356,30 +367,27 @@ class ActivityTracker:
 
             pid = ctypes.wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            proc_name = self._get_process_name(pid.value)
-            app_name  = APP_NAMES.get(proc_name.lower(), self._clean_process_name(proc_name))
+            proc_name, full_path = self._get_process_info(pid.value)
+            app_name = APP_NAMES.get(proc_name.lower(), self._clean_process_name(proc_name))
             clean_title = self._clean_title(title, app_name)
-            return proc_name, app_name, clean_title
+            return proc_name, app_name, clean_title, full_path
         except Exception as e:
-            # Раньше здесь была тихая заглушка без единого следа — если
-            # (несмотря на фикс restype/argtypes выше) сюда всё же дойдёт
-            # реальная ошибка, теперь она попадёт в ai_debug.log вместо
-            # того чтобы бесследно превращаться в вечный "Рабочий стол".
             self._log_checkpoint(f"_get_active_window ОШИБКА: {e!r}")
-            return "explorer.exe", "Рабочий стол", ""
+            return "explorer.exe", "Рабочий стол", "", ""
 
-    def _get_process_name(self, pid):
+    def _get_process_info(self, pid):
         try:
             handle = kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
             if not handle:
-                return "unknown.exe"
+                return "unknown.exe", ""
             buf  = ctypes.create_unicode_buffer(260)
             size = ctypes.wintypes.DWORD(260)
             ctypes.windll.psapi.GetModuleFileNameExW(handle, None, buf, size)
             kernel32.CloseHandle(handle)
-            return os.path.basename(buf.value) if buf.value else "unknown.exe"
+            full = buf.value or ""
+            return os.path.basename(full) if full else "unknown.exe", full
         except Exception:
-            return "unknown.exe"
+            return "unknown.exe", ""
 
     def _clean_title(self, title, app_name):
         if not title:
@@ -395,18 +403,3 @@ class ActivityTracker:
 
     def _clean_process_name(self, name):
         return name.replace(".exe", "").replace(".EXE", "").capitalize() or "Неизвестно"
-
-    def _get_ai_category(self, app_name, title):
-        try:
-            from core.ai_classify import classify_app, _load_cache
-            key = app_name.lower().strip()
-            cache = _load_cache()
-            if key in cache:
-                return cache[key]
-
-            def worker():
-                classify_app(app_name, title)
-            threading.Thread(target=worker, daemon=True).start()
-            return "other"
-        except Exception:
-            return "other"

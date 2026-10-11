@@ -6,13 +6,11 @@ from .chat import ChatManager
 from core.paths import data_path
 from datetime import datetime
 
-PORT = 39721
-RECONNECT_DELAY = 5
-OFFLINE_TIMEOUT = 15    # секунд без пакета от партнёра — "сырое" подозрение на оффлайн
-RECONNECT_GRACE = 30    # ещё столько секунд ждём подтверждения, прежде чем
-                         # считать партнёра ДЕЙСТВИТЕЛЬНО оффлайн (фильтр от
-                         # обычных сетевых морганий VPN — не создаём фантомные
-                         # "перезаходы" в статусе/логе из-за секундного обрыва)
+RELAY_HOST = "195.19.213.70"
+RELAY_PORT = 39722
+RECONNECT_DELAY = 3
+OFFLINE_TIMEOUT = 10    # секунд без пакета от партнёра — подозрение на оффлайн
+RECONNECT_GRACE = 15    # секунд ждём подтверждения оффлайна
 
 LOG_PATH = data_path("network_debug.log")
 HEALTH_LOG_INTERVAL = 300  # раз в 5 минут пишем в лог "всё ок" / текущий статус
@@ -77,16 +75,7 @@ def get_network_log(lines=200):
         return f"ошибка чтения лога: {e}"
 
 
-def _settings_path():
-    return data_path("settings.json")
-
-
-def load_settings():
-    try:
-        with open(_settings_path(), "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+from core.tracker import load_settings, _settings_path
 
 
 def _enable_keepalive(sock, idle=5, interval=3, count=3):
@@ -140,6 +129,7 @@ class NetworkManager:
         self._on_partner_update = []
         self._on_status_change = []
         self._on_message = []
+        self._on_heart = []
         self._running = False
         self._connected = False   # для колбэка on_status_change (эдж-детект)
         self._last_seen = 0       # timestamp последнего ЛЮБОГО пакета от партнёра
@@ -171,6 +161,9 @@ class NetworkManager:
     def on_message(self, cb):
         self._on_message.append(cb)
 
+    def on_heart(self, cb):
+        self._on_heart.append(cb)
+
     def get_partner_data(self):
         with self._lock:
             return dict(self.partner_data) if self.partner_data else None
@@ -194,7 +187,6 @@ class NetworkManager:
 
     def start(self):
         self._running = True
-        threading.Thread(target=self._run_server, daemon=True).start()
         threading.Thread(target=self._run_client, daemon=True).start()
         threading.Thread(target=self._watch_connection, daemon=True).start()
 
@@ -447,36 +439,47 @@ class NetworkManager:
         self._recv_loop(conn, label=f"SERVER<-{peer}")
         _log(f"SERVER: соединение от {peer} закрыто")
 
-    # ── Клиент ────────────────────────────────────────────────
+    # ── Клиент (подключение к VPS Relay) ─────────────────────
     def _run_client(self):
         while self._running:
             s = load_settings()
-            ip = s.get("ip", "").strip()
-            if not ip:
-                time.sleep(5)
+            key = (s.get("pairing_key") or "").strip()
+            if not key:
+                # Без pairing_key сервер не знает, с кем нас спаривать
+                time.sleep(3)
                 continue
             sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(5.0)
-                sock.connect((ip, PORT))
+                sock.connect((RELAY_HOST, RELAY_PORT))
                 _enable_keepalive(sock)
                 sock.settimeout(10.0)
                 self._client_socket = sock
                 if self._connect_failures:
-                    _log(f"CLIENT: снова подключились к {ip}:{PORT} "
+                    _log(f"RELAY: снова подключились к серверу {RELAY_HOST}:{RELAY_PORT} "
                          f"(после {self._connect_failures} неудачных попыток)")
                 else:
-                    _log(f"CLIENT: подключились к {ip}:{PORT}")
+                    _log(f"RELAY: подключились к серверу {RELAY_HOST}:{RELAY_PORT}")
                 self._connect_failures = 0
+
+                # Сразу отправляем регистрацию устройства в комнату
+                reg_packet = {
+                    "type": "register",
+                    "pairing_key": key,
+                    "device_id": s.get("device_id") or "",
+                    "name": s.get("name") or "Пользователь"
+                }
+                self._send_raw(sock, reg_packet)
+
                 send_t = threading.Thread(target=self._send_loop, args=(sock,), daemon=True)
                 send_t.start()
-                self._recv_loop(sock, label=f"CLIENT->{ip}")
+                self._recv_loop(sock, label=f"RELAY@{RELAY_HOST}")
             except Exception as e:
                 self._connect_failures += 1
                 _log_throttled(
                     "client_connect_fail",
-                    f"CLIENT: не удаётся подключиться к {ip}:{PORT} — "
+                    f"RELAY: не удаётся подключиться к {RELAY_HOST}:{RELAY_PORT} — "
                     f"{type(e).__name__}: {e} (попыток подряд: {self._connect_failures})"
                 )
             finally:
@@ -565,6 +568,15 @@ class NetworkManager:
                     self._process(text.strip())
             except socket.timeout:
                 continue
+            except OSError as e:
+                # WinError 10038 / 10054 / 10053 — сокет был закрыт при дисконнекте/выходе
+                if getattr(e, "winerror", None) in (10038, 10054, 10053):
+                    break
+                _log_throttled(
+                    f"recv_error:{label}",
+                    f"{label}: сокет закрыт ({e})"
+                )
+                break
             except Exception as e:
                 _log_throttled(
                     f"recv_error:{label}",
@@ -588,6 +600,7 @@ class NetworkManager:
             # при этом продолжит работать — получается однонаправленный
             # обрыв чата, который выглядит как "у меня доходит, у неё нет".
             "pairing_key": (s.get("pairing_key") or "").strip(),
+            "device_id": s.get("device_id") or "",
             "name": s.get("name") or "Партнёр",
             "gender": s.get("gender") or "male",
             "avatar": s.get("avatar") or "",
@@ -642,13 +655,13 @@ class NetworkManager:
             "text": text[:1000],
             "time": datetime.now().isoformat(),
             "msg_uid": msg_uid,
+            "device_id": settings.get("device_id") or "",
             "reply_to_uid": reply_to_uid,
             "reply_sender": reply_sender,
             "reply_text": (reply_text or "")[:300] or None,
         }
 
-        # Сохраняем локально сразу — мгновенный отклик в UI, независимо от
-        # состояния сети (у каждого своя локальная копия истории чата).
+        # Сохраняем локально сразу — мгновенный отклик в UI
         self.chat.add_message(
             sender=packet["sender"],
             text=packet["text"],
@@ -659,23 +672,38 @@ class NetworkManager:
             reply_text=packet["reply_text"],
         )
 
-        # Реальная отправка по сети — в отдельном потоке, не в потоке
-        # вызова. WindowAPI.send_message() дёргается СИНХРОННО из JS-моста
-        # pywebview (см. ui/window.py), поэтому раньше блокирующий sendall()
-        # на подвисшем сокете морозил всё окно на 10-20 сек. Теперь UI
-        # отпускается сразу; результат отправки на него не влияет — при
-        # неудаче _send_raw() сам закроет мёртвый сокет (см. его докстринг),
-        # и следующее сообщение уже не наступит на те же грабли.
         sock = self._client_socket
         if sock:
             self._msgs_sent += 1
+            _log(f"MSG: отправлено сообщение в сеть ({len(packet['text'])} симв., uid={msg_uid[:8]}...)")
             threading.Thread(
                 target=self._send_raw, args=(sock, packet), daemon=True
             ).start()
         else:
-            # партнёр сейчас не на связи — сообщение осталось только
-            # локально, это ожидаемо (видно по статусу подключения в трее/окне).
-            _log("MSG: партнёр не на связи — сообщение сохранено только локально")
+            _log("MSG: нет связи с сервером — сохранено только в локальную базу")
+
+    def send_heart(self):
+        """Отправляет сигнал сердечка ('думаю о тебе') партнёру"""
+        settings = load_settings()
+        packet = {
+            "type": "heart",
+            "pairing_key": (settings.get("pairing_key") or "").strip(),
+            "device_id": settings.get("device_id") or "",
+            "sender": settings.get("name") or "Партнёр",
+            "time": datetime.now().isoformat(),
+        }
+        sock = self._client_socket
+        if sock:
+            if self._connected:
+                _log(f"HEART: отправлен сигнал сердечка ❤️ (от {packet['sender']} -> партнёр в сети)")
+            else:
+                _log(f"HEART: сигнал сердечка ❤️ отправлен на сервер (ждём партнёра онлайн)")
+            threading.Thread(
+                target=self._send_raw, args=(sock, packet), daemon=True
+            ).start()
+            return True
+        _log("HEART: не удалось отправить сердечко — нет связи с сервером")
+        return False
 
     def _process(self, raw):
         try:
@@ -713,6 +741,18 @@ class NetworkManager:
             elif packet_type == "message":
                 self._process_message(data)
 
+            elif packet_type == "heart":
+                self._process_heart(data)
+
+            elif packet_type == "partner_offline":
+                self._process_partner_offline(data)
+
+            elif packet_type == "error":
+                _log(f"RELAY ERROR: {data.get('message', 'Неизвестная ошибка сервера')}")
+
+            elif packet_type == "registered":
+                _log(f"RELAY: Успешно зарегистрированы в комнате '{data.get('pairing_key')}' (роль: {data.get('role', 'участник')})")
+
             else:
                 _log_throttled(
                     "unknown_packet_type",
@@ -741,6 +781,12 @@ class NetworkManager:
 
     def _process_message(self, data):
         self._last_seen = time.time()
+        # Защита от эха: если сообщение пришло от нашего же устройства (например оффлайн буфер)
+        my_dev = (load_settings().get("device_id") or "").strip()
+        sender_dev = (data.get("device_id") or "").strip()
+        if my_dev and sender_dev and my_dev == sender_dev:
+            return
+
         self._msgs_received += 1
         text = data.get("text", "")[:1000]
         _log(f"MSG: получено сообщение от {data.get('sender') or 'Партнёр'} ({len(text)} симв.)")
@@ -759,6 +805,20 @@ class NetworkManager:
                 cb(data)
             except Exception:
                 pass
+
+    def _process_heart(self, data):
+        self._last_seen = time.time()
+        _log(f"HEART: получено сердечко от {data.get('sender') or 'Партнёр'}")
+        for cb in self._on_heart:
+            try:
+                cb(data)
+            except Exception:
+                pass
+
+    def _process_partner_offline(self, data):
+        _log("RELAY: сервер сообщил, что партнёр отключился")
+        # Сбрасываем last_seen, чтобы _watch_connection зафиксировал оффлайн
+        self._last_seen = 0
     
     def _set_connected(self, val):
         # Оставлено для обратной совместимости, если что-то извне ещё

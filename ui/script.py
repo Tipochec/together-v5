@@ -297,11 +297,64 @@ function removeAvatar(){
 const SETTINGS_FIELDS = {
   name:                   'inp-name',
   gender:                 'inp-gender',
-  ip:                     'inp-ip',
   pairing_key:            'inp-pairing-key',
-  my_ip_override:         'inp-my-ip',
   private_mode:           'tog-private',
 };
+
+function generatePairingKey(){
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const part = (len) => Array.from({length: len}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const key = `tgt-${part(4)}-${part(4)}-${part(4)}`;
+  const inp = document.getElementById('inp-pairing-key');
+  if(inp){
+    inp.value = key;
+    _markSettingsDirty('inp-pairing-key');
+  }
+}
+
+function copyPairingKey(btn){
+  const inp = document.getElementById('inp-pairing-key');
+  if(!inp || !inp.value) return;
+  const text = inp.value;
+  
+  const showSuccess = () => {
+    if(btn){
+      const old = btn.textContent;
+      btn.textContent = '✓';
+      btn.style.color = '#78dce8';
+      setTimeout(()=>{
+        btn.textContent = old;
+        btn.style.color = '';
+      }, 1500);
+    }
+  };
+
+  // 1. Стандартный execCommand через временный input
+  try {
+    inp.select();
+    inp.setSelectionRange(0, 99999);
+    if(document.execCommand('copy')){
+      showSuccess();
+      return;
+    }
+  } catch(e) {}
+
+  // 2. Fallback через navigator.clipboard
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(showSuccess).catch(()=>{
+      // 3. Через создание невидимого textarea
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showSuccess();
+    });
+  }
+}
 
 let _settingsBaseline = {};
 
@@ -337,15 +390,12 @@ function loadSettings(){
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
     document.getElementById('inp-gender').value=s.gender||'male';
-    document.getElementById('inp-ip').value=s.ip||'';
     document.getElementById('inp-pairing-key').value=s.pairing_key||'';
-    document.getElementById('inp-my-ip').value=s.my_ip||'';
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
     renderAvatarPreview(s.avatar||'');
 
-    // Свежая точка отсчёта "что уже сохранено" + снимаем подсветку —
-    // так же происходит и сразу после успешного сохранения ниже.
+    // Свежая точка отсчёта "что уже сохранено" + снимаем подсветку
     Object.entries(SETTINGS_FIELDS).forEach(([key,elId])=>{
       _settingsBaseline[elId] = _settingsFieldValue(elId);
     });
@@ -358,9 +408,7 @@ function saveSettings(){
   pywebview.api.save_settings({
     name:document.getElementById('inp-name').value,
     gender:document.getElementById('inp-gender').value,
-    ip:document.getElementById('inp-ip').value,
     pairing_key:document.getElementById('inp-pairing-key').value,
-    my_ip_override:document.getElementById('inp-my-ip').value,
     private_mode:document.getElementById('tog-private').checked,
   }).then(()=>{
     const b=document.getElementById('btn-save');
@@ -618,6 +666,68 @@ function openChat(){
 function setChatBadge(show){
   const b = document.getElementById('chat-badge');
   if(b) b.style.display = show ? 'block' : 'none';
+}
+
+function sendHeartPing(){
+  const btn = document.getElementById('btn-send-heart');
+  if(btn){
+    btn.classList.add('sent');
+    setTimeout(()=>btn.classList.remove('sent'), 700);
+  }
+  spawnHeartAnimation();
+  pywebview.api.send_heart().then(ok=>{
+    // heart sent
+  }).catch(()=>{});
+}
+
+let _pendingHeart = false;
+
+function onHeartReceived(){
+  if (document.hidden) {
+    _pendingHeart = true;
+  } else {
+    triggerHeartCelebration();
+  }
+}
+
+function triggerHeartCelebration(){
+  spawnHeartAnimation();
+  const card = document.getElementById('her-card');
+  if(card){
+    card.classList.add('card-updated');
+    setTimeout(()=>card.classList.remove('card-updated'), 1000);
+  }
+}
+
+window.addEventListener('focus', ()=>{
+  if(_pendingHeart){
+    _pendingHeart = false;
+    setTimeout(triggerHeartCelebration, 300);
+  }
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && _pendingHeart){
+    _pendingHeart = false;
+    setTimeout(triggerHeartCelebration, 300);
+  }
+});
+
+function spawnHeartAnimation(){
+  const container = document.getElementById('heart-burst');
+  if(!container) return;
+  const hearts = ['❤️', '💖', '💕', '✨', '💓'];
+  for(let i = 0; i < 4; i++){
+    setTimeout(()=>{
+      const el = document.createElement('div');
+      el.className = 'flying-heart';
+      el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+      el.style.left = (20 + Math.random() * 60) + '%';
+      el.style.top = (50 + Math.random() * 30) + '%';
+      container.appendChild(el);
+      setTimeout(()=>el.remove(), 1200);
+    }, i * 150);
+  }
 }
 
 """

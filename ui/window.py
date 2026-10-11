@@ -102,8 +102,13 @@ class WindowAPI:
             current.update(data)
             with open(_settings_path(), "w", encoding="utf-8") as f:
                 json.dump(current, f, ensure_ascii=False, indent=2)
+            from core.network import _log
+            _log(f"SETTINGS: настройки успешно обновлены: name='{current.get('name')}', gender='{current.get('gender')}', key_len={len(current.get('pairing_key', ''))}")
         except Exception as e:
             print("save_settings error:", e)
+        return True
+
+    def copy_to_clipboard(self, text):
         return True
 
     def pick_avatar(self):
@@ -274,6 +279,11 @@ class WindowAPI:
     def minimize_window(self):
         if _window:
             _window.minimize()
+
+    def send_heart(self):
+        if _network:
+            return _network.send_heart()
+        return False
 
     def quit_app(self):
         _do_quit()
@@ -451,6 +461,18 @@ def run_webview_loop(tracker, network, stats=None):
         _flash_taskbar_if_unfocused()
 
     network.on_message(_on_incoming_message)
+
+    def _on_incoming_heart(data):
+        if _window:
+            try:
+                _window.evaluate_js("onHeartReceived()")
+            except Exception:
+                pass
+        from core.notifications import play_chat_sound
+        play_chat_sound()
+        _flash_taskbar_if_unfocused()
+
+    network.on_heart(_on_incoming_heart)
 
     def _flash_taskbar_if_unfocused():
         try:
