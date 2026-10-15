@@ -106,6 +106,8 @@ class WindowAPI:
                 json.dump(current, f, ensure_ascii=False, indent=2)
             from core.network import _log
             _log(f"SETTINGS: настройки успешно обновлены: name='{current.get('name')}', gender='{current.get('gender')}', key_len={len(current.get('pairing_key', ''))}")
+            if _network:
+                _network.reconnect("сохранение настроек")
         except Exception as e:
             print("save_settings error:", e)
         return True
@@ -273,6 +275,12 @@ class WindowAPI:
     def get_network_log(self, lines=20):
         from core.network import get_network_log as _get_log
         return _get_log(lines)
+
+    def reconnect_network(self):
+        if _network:
+            _network.reconnect("кнопка в настройках")
+            return True
+        return False
 
     def hide_window(self):
         global _is_window_hidden

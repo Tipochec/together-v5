@@ -186,6 +186,24 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                         writer.write((qm + "\n").encode("utf-8"))
                     await writer.drain()
 
+            # ВСЕГДА гарантируем, что активное соединение зарегистрировано в комнате
+            if current_room:
+                if current_room not in ROOM_CLIENTS:
+                    ROOM_CLIENTS[current_room] = {}
+                if ROOM_CLIENTS[current_room].get(current_device) is not writer:
+                    ROOM_CLIENTS[current_room][current_device] = writer
+                    WRITER_TO_CLIENT[writer] = (current_room, current_device)
+
+            # Обработка ping/pong для проверки живости связи
+            if msg_type == "ping":
+                try:
+                    pong_msg = json.dumps({"type": "pong"}, ensure_ascii=False) + "\n"
+                    writer.write(pong_msg.encode("utf-8"))
+                    await writer.drain()
+                except Exception:
+                    pass
+                continue
+
             # Обработка пакета чата (message)
             if msg_type == "message":
                 payload_str = json.dumps(data, ensure_ascii=False)
@@ -193,14 +211,19 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 room_conns = ROOM_CLIENTS.get(current_room, {})
                 sent_to_online = False
 
-                for other_dev, other_writer in room_conns.items():
+                for other_dev, other_writer in list(room_conns.items()):
                     if other_dev != current_device:
                         try:
                             other_writer.write((payload_str + "\n").encode("utf-8"))
                             await other_writer.drain()
                             sent_to_online = True
-                        except Exception:
-                            pass
+                        except Exception as write_err:
+                            logging.warning(f"Ошибка отправки сообщения клиенту {other_dev}: {write_err}")
+                            ROOM_CLIENTS[current_room].pop(other_dev, None)
+                            try:
+                                other_writer.close()
+                            except Exception:
+                                pass
 
                 # Если партнёр сейчас не в сети — сохраняем в оффлайн-буфер на сервере!
                 if not sent_to_online:
@@ -218,8 +241,13 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                         try:
                             other_writer.write(payload)
                             await other_writer.drain()
-                        except Exception:
+                        except Exception as write_err:
+                            logging.warning(f"Ошибка отправки пакета {msg_type} клиенту {other_dev}: {write_err}")
                             ROOM_CLIENTS[current_room].pop(other_dev, None)
+                            try:
+                                other_writer.close()
+                            except Exception:
+                                pass
 
     except asyncio.CancelledError:
         pass

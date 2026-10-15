@@ -441,6 +441,19 @@ function showNetworkLog(){
   }).catch(e=>{ el.textContent='ошибка чтения лога: '+e; });
 }
 
+function reconnectNetwork(){
+  const btn=document.getElementById('btn-reconnect');
+  if(btn) btn.textContent='⏳ Переподключение...';
+  pywebview.api.reconnect_network().then(()=>{
+    setTimeout(()=>{
+      if(btn) btn.textContent='🔄 Переподключиться к серверу';
+      showNetworkLog();
+    }, 1500);
+  }).catch(e=>{
+    if(btn) btn.textContent='🔄 Переподключиться к серверу';
+  });
+}
+
 function toggleAutostart(){
   const row = document.getElementById('btn-autostart').closest('.settings-row');
   pywebview.api.toggle_autostart().then(on=>{

@@ -157,6 +157,10 @@ class NetworkManager:
         self._msgs_received = 0           # сколько сообщений чата пришло от партнёра
         self._connect_failures = 0        # подряд неудачных попыток клиента подключиться
         self._last_health_log = time.time()
+        self._client_connected_at = time.time()  # момент подключения текущего сокета
+        self._last_server_packet = 0      # время последнего пакета от сервера
+        self._last_idle_reconnect = time.time()  # время последнего watchdog-переподключения
+        self._idle_reconnect_count = 0    # счётчик попыток watchdog-переподключения
 
     def on_partner_update(self, cb): self._on_partner_update.append(cb)
     def on_status_change(self, cb):  self._on_status_change.append(cb)
@@ -205,6 +209,7 @@ class NetworkManager:
 
             if raw:
                 self._pending_offline_since = None
+                self._idle_reconnect_count = 0
                 if not self._connected:
                     self._connected = True
                     self._session_start = time.time()
@@ -257,6 +262,23 @@ class NetworkManager:
                         except Exception:
                             pass
 
+            # Сторожевой таймер (Watchdog):
+            # Если партнёр оффлайн, но наш клиентский сокет к relay открыт:
+            # проверяем, как давно мы получали данные от партнёра.
+            # Если тишина длится дольше интервала (30с -> 60с -> 120с),
+            # автоматически переоткрываем сокет к relay-серверу.
+            # Это мгновенно чинит рассинхрон сессий (когда relay потерял writer
+            # из-за TCP drop'а, но не закрыл соединение) и защищает от "зависших сокетов".
+            if not self._connected and self._client_socket is not None:
+                base_time = self._last_seen if self._last_seen > 0 else self._client_connected_at
+                silence = time.time() - base_time
+                retry_interval = min(120, 30 * (2 ** min(self._idle_reconnect_count, 2)))
+                if silence >= retry_interval and (time.time() - self._last_idle_reconnect) >= retry_interval:
+                    self._last_idle_reconnect = time.time()
+                    self._idle_reconnect_count += 1
+                    _log(f"WATCHDOG: нет данных от партнёра {int(silence)} сек — авто-обновление подключения к серверу (попытка #{self._idle_reconnect_count})")
+                    self._close_client_socket()
+
             if time.time() - self._last_health_log >= HEALTH_LOG_INTERVAL:
                 self._last_health_log = time.time()
                 self._log_health()
@@ -264,20 +286,29 @@ class NetworkManager:
             time.sleep(1)
 
     def _log_health(self):
-        """Периодическая запись в лог, что всё в порядке (или явно не в
-        порядке) — чтобы по логу можно было понять, было ли приложение
-        вообще живо и что оно видело, даже если никто не жаловался."""
+        """Периодическая запись в лог состояния сети и статуса партнёра."""
+        now = time.time()
+        last_seen_sec = int(now - self._last_seen) if self._last_seen > 0 else "никогда"
+        sock_state = "подключен" if self._client_socket is not None else "нет сокета"
         if self._connected:
-            uptime_min = int((time.time() - self._session_start) / 60) if self._session_start else 0
+            uptime_min = int((now - self._session_start) / 60) if self._session_start else 0
             _log(
-                f"HEALTH: всё в порядке — партнёр на связи уже {uptime_min} мин, "
-                f"сообщений отправлено={self._msgs_sent} получено={self._msgs_received}"
+                f"HEALTH: всё в порядке — партнёр на связи ({uptime_min} мин), "
+                f"сокет={sock_state}, посл. пакет={last_seen_sec}с назад, "
+                f"сообщений: отправлено={self._msgs_sent}, получено={self._msgs_received}"
             )
         else:
             _log(
-                f"HEALTH: партнёр НЕ на связи, пытаемся переподключиться "
-                f"(неудачных попыток клиента подряд: {self._connect_failures})"
+                f"HEALTH: партнёр НЕ на связи, сокет={sock_state}, "
+                f"посл. пакет={last_seen_sec}с назад, неудач подключения={self._connect_failures}, "
+                f"watchdog_попыток={self._idle_reconnect_count}"
             )
+
+    def reconnect(self, reason="ручной запрос"):
+        """Принудительно закрывает сокет, заставляя _run_client переподключиться."""
+        _log(f"RELAY: принудительное переподключение ({reason})")
+        self._last_idle_reconnect = time.time()
+        self._close_client_socket()
 
     def get_partner_status(self):
         """
@@ -459,6 +490,8 @@ class NetworkManager:
                 _enable_keepalive(sock)
                 sock.settimeout(10.0)
                 self._client_socket = sock
+                self._client_connected_at = time.time()
+                self._last_server_packet = time.time()
                 if self._connect_failures:
                     _log(f"RELAY: снова подключились к серверу {RELAY_HOST}:{RELAY_PORT} "
                          f"(после {self._connect_failures} неудачных попыток)")
@@ -738,6 +771,7 @@ class NetworkManager:
                 return
 
             packet_type = data.get("type")
+            self._last_server_packet = time.time()
 
             if packet_type == "activity":
                 self._process_activity(data)
@@ -757,6 +791,9 @@ class NetworkManager:
             elif packet_type == "registered":
                 _log(f"RELAY: Успешно зарегистрированы в комнате '{data.get('pairing_key')}' (роль: {data.get('role', 'участник')})")
 
+            elif packet_type == "pong":
+                pass
+
             else:
                 _log_throttled(
                     "unknown_packet_type",
@@ -775,6 +812,15 @@ class NetworkManager:
         with self._lock:
             self.partner_data = data
         self._last_seen = time.time()
+        self._last_server_packet = time.time()
+
+        partner_name = data.get("name") or "Партнёр"
+        app = data.get("app") or "—"
+        _log_throttled(
+            f"recv_act_{partner_name}",
+            f"RECV: активность партнёра {partner_name} ({app})",
+            min_interval=60
+        )
 
         for cb in self._on_partner_update:
             try:
