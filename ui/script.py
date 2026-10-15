@@ -394,6 +394,10 @@ function _wireSettingsDirtyTracking(){
 
 function loadSettings(){
   _wireSettingsDirtyTracking();
+  pywebview.api.get_app_version().then(v=>{
+    const b = document.getElementById('app-version-badge');
+    if(b) b.textContent = 'v' + v;
+  }).catch(()=>{});
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
     document.getElementById('inp-gender').value=s.gender||'male';
@@ -431,6 +435,101 @@ function saveSettings(){
     document.querySelectorAll('.settings-row.settings-dirty')
       .forEach(r=>r.classList.remove('settings-dirty'));
   });
+}
+
+let _updateInfo = null;
+
+function checkUpdate(silent = false){
+  const btn = document.getElementById('btn-check-update');
+  const statusEl = document.getElementById('update-status-text');
+  const actionBox = document.getElementById('update-action-box');
+  const notesEl = document.getElementById('update-notes');
+  const badge = document.getElementById('app-version-badge');
+
+  if(btn && !silent) btn.textContent = '⏳ Поиск...';
+  if(statusEl && !silent) statusEl.textContent = 'Проверяем GitHub Releases...';
+
+  pywebview.api.get_app_version().then(v=>{
+    if(badge) badge.textContent = 'v' + v;
+  }).catch(()=>{});
+
+  pywebview.api.check_for_updates().then(res=>{
+    if(btn) btn.textContent = 'Проверить';
+    if(!res){
+      if(statusEl && !silent) statusEl.textContent = 'Не удалось проверить обновления';
+      return;
+    }
+    if(badge && res.current_version) {
+      badge.textContent = 'v' + res.current_version;
+    }
+
+    if(res.has_update && res.download_url){
+      _updateInfo = res;
+      if(statusEl) {
+        statusEl.innerHTML = `<span style="color:#6ee7b7;font-weight:600">Доступна новая версия v${res.latest_version}!</span>`;
+      }
+      if(notesEl) {
+        notesEl.textContent = res.release_notes || `Доступна новая версия Together v${res.latest_version}`;
+      }
+      if(actionBox) {
+        actionBox.style.display = 'block';
+      }
+    } else {
+      _updateInfo = null;
+      if(actionBox) actionBox.style.display = 'none';
+      if(statusEl){
+        if(res.error){
+          if(!silent) statusEl.textContent = res.error;
+        } else {
+          statusEl.textContent = `У вас последняя версия (v${res.current_version})`;
+        }
+      }
+    }
+  }).catch(e=>{
+    if(btn) btn.textContent = 'Проверить';
+    if(statusEl && !silent) statusEl.textContent = 'Ошибка проверки: ' + e;
+  });
+}
+
+function applyUpdate(){
+  if(!_updateInfo || !_updateInfo.download_url) return;
+  const btn = document.getElementById('btn-apply-update');
+  if(btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Загрузка обновления...';
+  }
+  pywebview.api.apply_update(_updateInfo.download_url).then(res=>{
+    if(res && res.success){
+      if(res.restarting){
+        if(btn) btn.textContent = '🚀 Перезапуск приложения...';
+      } else if(res.dev_mode){
+        alert(res.message);
+        if(btn) {
+          btn.disabled = false;
+          btn.textContent = '📥 Скачать и установить обновление';
+        }
+      }
+    } else {
+      alert('Ошибка при установке обновления: ' + ((res && res.error) || 'неизвестная ошибка'));
+      if(btn) {
+        btn.disabled = false;
+        btn.textContent = '📥 Скачать и установить обновление';
+      }
+    }
+  }).catch(e=>{
+    alert('Ошибка при скачивании: ' + e);
+    if(btn) {
+      btn.disabled = false;
+      btn.textContent = '📥 Скачать и установить обновление';
+    }
+  });
+}
+
+function onUpdateProgress(pct){
+  const btn = document.getElementById('btn-apply-update');
+  if(btn) {
+    btn.textContent = `⏳ Загрузка (${pct}%)...`;
+  }
 }
 
 function showNetworkLog(){
@@ -666,6 +765,7 @@ function tick(){
 window.addEventListener('pywebviewready',()=>{
   tick(); setInterval(tick,1500);
   loadCustomCategories();
+  setTimeout(()=>checkUpdate(true), 3500);
 });
 
 // Категории, которые пользователь добавил сам через "+ своя категория" в

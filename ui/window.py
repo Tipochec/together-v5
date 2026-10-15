@@ -282,6 +282,24 @@ class WindowAPI:
             return True
         return False
 
+    def get_app_version(self):
+        from core.version import APP_VERSION
+        return APP_VERSION
+
+    def check_for_updates(self):
+        from core.updater import check_updates
+        return check_updates()
+
+    def apply_update(self, download_url):
+        from core.updater import apply_update as _apply
+        def _prog(pct):
+            if _window:
+                try:
+                    _window.evaluate_js(f"onUpdateProgress({pct});")
+                except Exception:
+                    pass
+        return _apply(download_url, progress_callback=_prog)
+
     def hide_window(self):
         global _is_window_hidden
         _is_window_hidden = True
@@ -533,8 +551,8 @@ def run_webview_loop(tracker, network, stats=None):
                 _chat_window.evaluate_js(f"onHeartReceived({js_sender});")
             except Exception:
                 pass
-        from core.notifications import play_chat_sound
-        play_chat_sound()
+        from core.notifications import play_heart_sound
+        play_heart_sound()
         _flash_taskbar_if_unfocused()
 
     network.on_heart(_on_incoming_heart)

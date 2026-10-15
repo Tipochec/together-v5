@@ -24,29 +24,47 @@ except ImportError:
     # Не-Windows система (например при разработке/тестах) — просто молчим
     _AVAILABLE = False
 
-_SOUND_PATH = resource_path("sound", "alarm.wav")
+_CHAT_SOUND_PATH = resource_path("sound", "alarm.wav")
+_HEART_SOUND_PATH = resource_path("sound", "heart.wav")
 
 
 def play_chat_sound():
-    """Проигрывает звук уведомления. Не блокирует поток (SND_ASYNC)."""
+    """Проигрывает звук уведомления о сообщении в чате. Не блокирует поток (SND_ASYNC)."""
     if not _AVAILABLE:
         return
 
-    if os.path.isfile(_SOUND_PATH):
+    if os.path.isfile(_CHAT_SOUND_PATH):
         try:
-            winsound.PlaySound(_SOUND_PATH, winsound.SND_FILENAME | winsound.SND_ASYNC)
+            winsound.PlaySound(_CHAT_SOUND_PATH, winsound.SND_FILENAME | winsound.SND_ASYNC)
             return
         except Exception:
-            pass  # если файл почему-то не проигрался — падаем на системный звук ниже
+            pass
 
     try:
-        # Подстраховка на случай, если sound/alarm.wav вдруг отсутствует
-        # (например, случайно не попал в сборку .exe) — звук уведомления
-        # молчать не должен, лучше стандартный "динь" Windows, чем ничего.
         winsound.PlaySound(
             "SystemAsterisk",
             winsound.SND_ALIAS | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
         )
     except Exception:
-        # Уведомления не критичны — не должны ронять поток сети
+        pass
+
+
+def play_heart_sound():
+    """Проигрывает звук сердечка ('думаю о тебе'). Не блокирует поток (SND_ASYNC)."""
+    if not _AVAILABLE:
+        return
+
+    if os.path.isfile(_HEART_SOUND_PATH):
+        try:
+            winsound.PlaySound(_HEART_SOUND_PATH, winsound.SND_FILENAME | winsound.SND_ASYNC)
+            return
+        except Exception:
+            pass
+
+    try:
+        winsound.PlaySound(
+            "SystemAsterisk",
+            winsound.SND_ALIAS | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
+        )
+    except Exception:
         pass
