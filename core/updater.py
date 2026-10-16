@@ -150,11 +150,13 @@ def apply_update(download_url, progress_callback=None):
         # ВАЖНО: обязательно очищаем переменные _MEIPASS2 / _MEIPASS, иначе
         # PyInstaller в новом процессе подумает, что он дочерний процесс
         # старой распакованной версии, и упадёт с ошибкой "Failed to load Python DLL".
+        target_dir = os.path.dirname(target_exe)
+        target_name = os.path.basename(target_exe)
         bat_path = os.path.join(temp_dir, f"together_updater_{int(time.time())}.bat")
         bat_content = f"""@echo off
 chcp 65001 >nul
 echo Обновление Together...
-timeout /t 1 /nobreak >nul
+timeout /t 2 /nobreak >nul
 :retry
 move /y "{download_target}" "{target_exe}" >nul 2>&1
 if errorlevel 1 (
@@ -164,16 +166,26 @@ if errorlevel 1 (
 timeout /t 1 /nobreak >nul
 set _MEIPASS2=
 set _MEIPASS=
-start "" "{target_exe}"
+cd /d "{target_dir}"
+start "" "{target_name}"
 del "%~f0"
 """
         with open(bat_path, "w", encoding="utf-8") as bf:
             bf.write(bat_content)
 
-        # Очищаем переменные окружения PyInstaller для запускающего процесса
+        # Очищаем переменные окружения PyInstaller для запускающего процесса.
+        # ВАЖНО: PyInstaller добавляет свою временную папку _MEI... в начало PATH.
+        # Если её не убрать, новый процесс попытается искать DLL в старой (уже удалённой)
+        # папке и упадёт с ошибкой "Failed to load Python DLL".
         clean_env = os.environ.copy()
         clean_env.pop("_MEIPASS2", None)
         clean_env.pop("_MEIPASS", None)
+        mei_dir = getattr(sys, "_MEIPASS", None)
+        if mei_dir and "PATH" in clean_env:
+            paths = clean_env["PATH"].split(os.pathsep)
+            clean_env["PATH"] = os.pathsep.join([
+                p for p in paths if os.path.normcase(p) != os.path.normcase(mei_dir)
+            ])
 
         # Запускаем bat-скрипт в полностью скрытом окне (CREATE_NO_WINDOW = 0x08000000)
         CREATE_NO_WINDOW = 0x08000000
