@@ -455,6 +455,8 @@ class NetworkManager:
         """
         try:
             with self._send_lock:
+                if self._client_socket is None or sock != self._client_socket:
+                    return False
                 sock.sendall(
                     (json.dumps(payload_dict, ensure_ascii=False) + "\n").encode()
                 )
@@ -662,22 +664,26 @@ class NetworkManager:
             # того как его данные попадут в интерфейс. Если ключ не
             # задан (пусто) — старое поведение сохраняется, чтобы не
             # сломать уже работающую пару без ключа.
+            packet_type = data.get("type")
+            self._last_server_packet = time.time()
+
+            # Служебные ответы от самого relay-сервера (не от партнёра)
+            if packet_type in ("registered", "pong", "error"):
+                if packet_type == "error":
+                    _log(f"RELAY ОШИБКА СЕРВЕРА: [{data.get('code')}] {data.get('message')}")
+                elif packet_type == "registered":
+                    _log(f"RELAY: успешно зарегистрированы в комнате '{data.get('pairing_key')}'")
+                return
+
             expected_key = (load_settings().get("pairing_key") or "").strip()
             if expected_key and data.get("pairing_key") != expected_key:
                 got_key = data.get("pairing_key") or ""
                 _log_throttled(
                     "pairing_key_mismatch",
                     "RECV: пакет с неверным pairing_key — отклонён "
-                    "(похоже, кто-то посторонний стучится на порт; "
-                    f"наш ключ: {len(expected_key)} симв., в пакете: "
-                    f"{len(got_key)} симв. — если длины близки, но не "
-                    "совпали, проверьте лишние пробелы в поле ключа "
-                    "у обеих сторон)"
+                    f"(наш ключ: {len(expected_key)} симв., в пакете: {len(got_key)} симв.)"
                 )
                 return
-
-            packet_type = data.get("type")
-            self._last_server_packet = time.time()
 
             if packet_type == "activity":
                 self._process_activity(data)
