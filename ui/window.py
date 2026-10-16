@@ -73,20 +73,9 @@ class WindowAPI:
         }
 
     def get_settings(self):
-        import socket as sk
         from core.tracker import load_settings
         from core.autostart import is_autostart_enabled
         s = load_settings()
-        manual_ip = (s.get("my_ip_override") or "").strip()
-        if manual_ip:
-            zt_ip = manual_ip
-        else:
-            try:
-                addrs = sk.getaddrinfo(sk.gethostname(), None)
-                zt_ip = next((a[4][0] for a in addrs if a[4][0].startswith("10.")), "—")
-            except Exception:
-                zt_ip = "—"
-        s["my_ip"]    = zt_ip
         s["autostart"] = is_autostart_enabled()
         return s
 
@@ -364,43 +353,6 @@ class WindowAPI:
         setup_autostart(enable=not enabled)
         return not enabled
 
-    def setup_firewall(self):
-        """Ручной повтор настройки брандмауэра (кнопка в настройках) —
-        на случай если пользователь отказал в UAC при первом запуске
-        или правило было позже удалено вручную. Показывает системный
-        UAC-запрос синхронно (пока пользователь не ответит), поэтому
-        дёргается кнопкой, а не автоматически."""
-        import time
-        from core.firewall import add_rule_elevated, rule_exists
-        add_rule_elevated()
-        # netsh выполняется в отдельном elevated-процессе, запущенном
-        # через ShellExecuteW — небольшая пауза, чтобы он успел
-        # завершиться до проверки, иначе rule_exists() может ещё не
-        # увидеть только что добавленное правило.
-        time.sleep(1.5)
-        return rule_exists()
-
-    def repair_firewall(self):
-        """
-        "Пересоздать правило" — для случая, когда правило по имени вроде
-        есть, но реально ничего не разрешает (устаревший путь к .exe после
-        переустановки/переноса, дубликаты и т.п.), либо когда просто хочется
-        заново увидеть системный диалог Windows про блокировку (тот, что с
-        кнопкой "Разрешить доступ" — см. первый скриншот пользователя) вместо
-        нашего собственного UAC-запроса на netsh.
-
-        Шаги: 1) удаляем текущее правило (UAC), 2) перезапускаем слушающий
-        сокет — это заставляет Windows Firewall заново оценить попытку
-        слушать порт и, если "уведомлять о новых приложениях" включено в
-        настройках Windows, показать своё системное окно самостоятельно.
-        """
-        import time
-        from core.firewall import delete_rule_elevated, rule_exists
-        delete_rule_elevated()
-        time.sleep(1.5)
-        if _network:
-            _network.restart_server()
-        return not rule_exists()
 
 
 def _do_quit():

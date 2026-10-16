@@ -251,17 +251,14 @@ class ActivityTracker:
             self._log_checkpoint(f"пропущен — слишком мало данных (active={active})")
             return
 
+        conn = None
         try:
             import sqlite3
             db_path = data_path("stats.db")
-            # timeout — сколько ждать, если файл БД сейчас занят другим
-            # потоком (stats.py тоже пишет в тот же stats.db каждую
-            # секунду) — раньше таймаута не было явно указано, и при
-            # совпадении по времени запись могла тихо не пройти
             conn = sqlite3.connect(db_path, timeout=10)
 
             # Проверяем, нет ли уже таблицы sessions с ДРУГОЙ (несовместимой)
-            # структурой — например, оставшейся от более раннего варианта
+            # структуре — например, оставшейся от более раннего варианта
             # этой фичи. CREATE TABLE IF NOT EXISTS её не тронет, а INSERT
             # потом просто упадёт с "no column named active_seconds".
             # Переименовываем старую (не удаляем!) и создаём новую с нуля.
@@ -305,11 +302,17 @@ class ActivityTracker:
                                       f"(active={active}, watching={watching}, afk={afk})")
 
             conn.commit()
-            conn.close()
         except Exception as e:
             self._log_checkpoint(f"ОШИБКА при записи: {e}")
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     def get_session_history(self, limit=10):
+        conn = None
         try:
             import sqlite3
             db_path = data_path("stats.db")
@@ -320,7 +323,6 @@ class ActivityTracker:
                 ORDER BY id DESC
                 LIMIT ?
             """, (limit,)).fetchall()
-            conn.close()
             return [
                 {
                     "started_at": r[0], "ended_at": r[1],
@@ -330,6 +332,12 @@ class ActivityTracker:
             ]
         except Exception:
             return []
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     def _calc_status(self, idle_secs, app, title):
         # Единственный критерий — бездействие клавиатуры/мыши.

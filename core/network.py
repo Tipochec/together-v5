@@ -137,15 +137,6 @@ class NetworkManager:
         self._connected = False   # для колбэка on_status_change (эдж-детект)
         self._last_seen = 0       # timestamp последнего ЛЮБОГО пакета от партнёра
         self._client_socket = None
-        self._server_socket = None       # текущий слушающий сокет — нужен, чтобы
-                                          # можно было закрыть его извне и
-                                          # заставить _run_server забиндиться
-                                          # заново (см. restart_server())
-        self._restart_requested = threading.Event()  # взводится restart_server(),
-                                          # чтобы _run_server знал, что закрытие
-                                          # сокета — намеренное, и сразу
-                                          # перебиндился без обычной паузы 3с
-                                          # на "необъяснимую" ошибку
         self._send_lock = threading.Lock()  # защита от одновременной записи в
                                              # сокет из _send_loop (heartbeat раз в
                                              # 2 сек) и send_message() параллельно
@@ -387,91 +378,6 @@ class NetworkManager:
     def update_settings(self, **kwargs):
         pass  # Настройки читаются из файла динамически
 
-    # ── Сервер ────────────────────────────────────────────────
-    def _run_server(self):
-        # Ждём (с таймаутом) сигнал, что попытка настройки/починки правила
-        # брандмауэра хотя бы НАЧАЛАСЬ (см. core/firewall.py
-        # firewall_attempt_done) — иначе бывает гонка: сокет успевает
-        # забиндиться раньше, чем правило вообще появляется, и Windows
-        # показывает своё системное окно про блокировку ОДНОВРЕМЕННО с
-        # нашим UAC-запросом на netsh, вместо одного понятного диалога.
-        # Таймаут на случай, если поток настройки брандмауэра почему-то не
-        # стартовал вовсе (например core.firewall недоступен) — тогда не
-        # блокируем сервер вечно, а просто продолжаем как раньше.
-        try:
-            from core.firewall import firewall_attempt_done
-            firewall_attempt_done.wait(timeout=3.0)
-        except Exception:
-            pass
-
-        first_bind = True
-        while self._running:
-            try:
-                srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                srv.bind(("0.0.0.0", PORT))
-                srv.listen(1)
-                srv.settimeout(2.0)
-                self._server_socket = srv
-                _log(f"SERVER: слушаем входящие подключения на порту {PORT}")
-                first_bind = False
-                while self._running:
-                    try:
-                        conn, addr = srv.accept()
-                        threading.Thread(
-                            target=self._handle_conn, args=(conn, addr), daemon=True
-                        ).start()
-                    except socket.timeout:
-                        continue
-                    except OSError:
-                        # Сокет закрыли извне (см. restart_server()) —
-                        # выходим из внутреннего цикла и перебиндимся заново
-                        break
-                srv.close()
-            except Exception as e:
-                if not first_bind and self._restart_requested.is_set():
-                    # Намеренный рестарт (кнопка "Пересоздать правило" в
-                    # настройках) — перебиндиваемся сразу, без обычной
-                    # 3-секундной паузы, которая рассчитана на реальные
-                    # неожиданные сбои bind(), а не на наше собственное
-                    # закрытие сокета.
-                    self._restart_requested.clear()
-                    continue
-                _log_throttled(
-                    "server_bind_error",
-                    f"SERVER: не удалось запустить сервер на порту {PORT} — "
-                    f"{type(e).__name__}: {e}"
-                )
-                time.sleep(3)
-
-    def restart_server(self):
-        """
-        Принудительно закрывает текущий слушающий сокет и заставляет
-        _run_server забиндиться заново на том же порту. Используется кнопкой
-        "Пересоздать правило" в настройках (core/firewall.delete_rule_elevated
-        + этот рестарт) — после удаления правила новая попытка слушать порт
-        заново оценивается Windows Firewall, и та может показать своё
-        системное окно "Брандмауэр заблокировал некоторые функции этого
-        приложения" (то самое окно с кнопкой "Разрешить доступ", которое не
-        требует отдельного UAC-запроса на netsh).
-        """
-        self._restart_requested.set()
-        srv = self._server_socket
-        if srv is not None:
-            try:
-                srv.close()
-            except Exception:
-                pass
-
-    def _handle_conn(self, conn, addr):
-        _enable_keepalive(conn)
-        conn.settimeout(10.0)
-        peer = addr[0] if addr else "?"
-        _log(f"SERVER: входящее подключение от {peer}")
-        send_t = threading.Thread(target=self._send_loop, args=(conn,), daemon=True)
-        send_t.start()
-        self._recv_loop(conn, label=f"SERVER<-{peer}")
-        _log(f"SERVER: соединение от {peer} закрыто")
 
     # ── Клиент (подключение к VPS Relay) ─────────────────────
     def _run_client(self):

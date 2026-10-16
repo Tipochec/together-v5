@@ -1,5 +1,6 @@
 from .styles import CSS
 from .script import JS
+from core.version import APP_VERSION
 
 HTML = r"""
 <!DOCTYPE html>
@@ -220,7 +221,7 @@ HTML = r"""
     <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-weight:600;font-size:13px">Together <span id="app-version-badge" style="color:#a89ef0;font-size:11px;font-weight:normal">v1.1.0</span></div>
+          <div style="font-weight:600;font-size:13px">Together <span id="app-version-badge" style="color:#a89ef0;font-size:11px;font-weight:normal">v{version}</span></div>
           <div id="update-status-text" style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">Проверить обновления</div>
         </div>
         <button class="btn" id="btn-check-update" onclick="checkUpdate()" style="padding:6px 12px;font-size:11px">Проверить</button>
@@ -230,17 +231,18 @@ HTML = r"""
         <button class="btn btn-primary" id="btn-apply-update" onclick="applyUpdate()" style="width:100%">📥 Скачать и установить обновление</button>
       </div>
     </div>
-    <div style="margin-top:14px">
-      <button class="btn" onclick="runDebugScan()" style="width:100%">🔍 Что видит сканер сейчас?</button>
-      <div id="debug-result" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);
-        max-height:200px;overflow-y:auto"></div>
-    </div>
-    <div style="margin-top:10px">
-      <button class="btn" onclick="showNetworkLog()" style="width:100%">🌐 Лог сети (последние 20 строк)</button>
-      <button class="btn" id="btn-reconnect" onclick="reconnectNetwork()" style="width:100%;margin-top:6px">🔄 Переподключиться к серверу</button>
-      <div id="network-log-result" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);
-        max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
-    </div>
+    <details style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px">
+      <summary style="cursor:pointer;font-size:12px;color:rgba(255,255,255,0.6);font-weight:500;user-select:none;outline:none">🛠️ Диагностика и сеть</summary>
+      <div style="margin-top:10px">
+        <button class="btn" onclick="runDebugScan()" style="width:100%">🔍 Что видит сканер сейчас?</button>
+        <div id="debug-result" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4);max-height:160px;overflow-y:auto"></div>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn" onclick="showNetworkLog()" style="width:100%">🌐 Лог сети (последние 20 строк)</button>
+        <button class="btn" id="btn-reconnect" onclick="reconnectNetwork()" style="width:100%;margin-top:6px">🔄 Переподключиться к серверу</button>
+        <div id="network-log-result" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4);max-height:160px;overflow-y:auto;white-space:pre-wrap"></div>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -253,5 +255,6 @@ HTML = r"""
 """
 HTML = HTML.format(
     styles=CSS,
-    script=JS
+    script=JS,
+    version=APP_VERSION,
 )

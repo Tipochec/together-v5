@@ -261,28 +261,6 @@ function renderAvatarPreview(dataUri){
   }
 }
 
-function setupFirewall(){
-  const b = document.getElementById('btn-firewall');
-  const row = b.closest('.settings-row');
-  b.textContent = 'ждём подтверждения...';
-  pywebview.api.setup_firewall().then(ok=>{
-    b.textContent = ok ? 'настроено ✓' : 'не удалось, повторить?';
-    if(row) row.classList.add('settings-dirty');
-  });
-}
-
-function repairFirewall(){
-  const b = document.getElementById('btn-firewall-repair');
-  const row = b.closest('.settings-row');
-  const original = b.textContent;
-  b.textContent = 'ждём подтверждения...';
-  pywebview.api.repair_firewall().then(deleted=>{
-    b.textContent = deleted ? 'готово — жди окно Windows' : 'не удалось, повторить?';
-    if(row) row.classList.add('settings-dirty');
-    setTimeout(()=>{ b.textContent = original; }, 4000);
-  });
-}
-
 function pickAvatar(){
   pywebview.api.pick_avatar().then(uri=>{
     if(uri) renderAvatarPreview(uri);

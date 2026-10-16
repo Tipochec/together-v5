@@ -53,10 +53,19 @@ def _extra_ignore_processes():
         return set()
 
 
+import contextlib
+
+@contextlib.contextmanager
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def init_db():

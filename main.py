@@ -10,7 +10,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.tracker import ActivityTracker
 from core.network import NetworkManager
 from core.autostart import setup_autostart_once
-from core.firewall import ensure_firewall_rule_once
 from core.tray import TrayApp
 from core.stats import StatsTracker
 
