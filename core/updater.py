@@ -147,6 +147,9 @@ def apply_update(download_url, progress_callback=None):
 
         # Создаём bat-скрипт, который подождёт завершения текущего процесса,
         # заменит старый .exe на новый и запустит обновлённое приложение.
+        # ВАЖНО: обязательно очищаем переменные _MEIPASS2 / _MEIPASS, иначе
+        # PyInstaller в новом процессе подумает, что он дочерний процесс
+        # старой распакованной версии, и упадёт с ошибкой "Failed to load Python DLL".
         bat_path = os.path.join(temp_dir, f"together_updater_{int(time.time())}.bat")
         bat_content = f"""@echo off
 chcp 65001 >nul
@@ -158,15 +161,27 @@ if errorlevel 1 (
     timeout /t 1 /nobreak >nul
     goto retry
 )
+timeout /t 1 /nobreak >nul
+set _MEIPASS2=
+set _MEIPASS=
 start "" "{target_exe}"
 del "%~f0"
 """
         with open(bat_path, "w", encoding="utf-8") as bf:
             bf.write(bat_content)
 
+        # Очищаем переменные окружения PyInstaller для запускающего процесса
+        clean_env = os.environ.copy()
+        clean_env.pop("_MEIPASS2", None)
+        clean_env.pop("_MEIPASS", None)
+
         # Запускаем bat-скрипт в полностью скрытом окне (CREATE_NO_WINDOW = 0x08000000)
         CREATE_NO_WINDOW = 0x08000000
-        subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=CREATE_NO_WINDOW)
+        subprocess.Popen(
+            ["cmd.exe", "/c", bat_path],
+            env=clean_env,
+            creationflags=CREATE_NO_WINDOW
+        )
 
         # Даём скрипту запуститься и немедленно выходим
         def _delayed_exit():
