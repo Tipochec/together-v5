@@ -3,5 +3,5 @@
 Используется системой автообновления для сверки с GitHub Releases.
 """
 
-APP_VERSION = "1.2.4"
+APP_VERSION = "1.2.5"
 GITHUB_REPO = "Tipochec/together-v5"
