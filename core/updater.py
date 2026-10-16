@@ -164,6 +164,10 @@ if errorlevel 1 (
     goto retry
 )
 timeout /t 1 /nobreak >nul
+set _PYI_APPLICATION_HOME_DIR=
+set _PYI_PARENT_PROCESS_LEVEL=
+set _PYI_ARCHIVE_FILE=
+set _PYI_SPLASH_IPC=
 set _MEIPASS2=
 set _MEIPASS=
 cd /d "{target_dir}"
@@ -174,12 +178,13 @@ del "%~f0"
             bf.write(bat_content)
 
         # Очищаем переменные окружения PyInstaller для запускающего процесса.
-        # ВАЖНО: PyInstaller добавляет свою временную папку _MEI... в начало PATH.
-        # Если её не убрать, новый процесс попытается искать DLL в старой (уже удалённой)
-        # папке и упадёт с ошибкой "Failed to load Python DLL".
-        clean_env = os.environ.copy()
-        clean_env.pop("_MEIPASS2", None)
-        clean_env.pop("_MEIPASS", None)
+        # В PyInstaller 6+ ключевая переменная: _PYI_APPLICATION_HOME_DIR.
+        # Если её не очистить, новый процесс пытается загрузить DLL из старой
+        # временной папки _MEI... и падает с ошибкой "Failed to load Python DLL".
+        clean_env = {
+            k: v for k, v in os.environ.items()
+            if not k.startswith("_PYI_") and not k.startswith("_MEI")
+        }
         mei_dir = getattr(sys, "_MEIPASS", None)
         if mei_dir and "PATH" in clean_env:
             paths = clean_env["PATH"].split(os.pathsep)
