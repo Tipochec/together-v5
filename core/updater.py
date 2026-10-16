@@ -171,7 +171,7 @@ set _PYI_SPLASH_IPC=
 set _MEIPASS2=
 set _MEIPASS=
 cd /d "{target_dir}"
-start "" "{target_name}"
+start "" "{target_name}" --show
 del "%~f0"
 """
         with open(bat_path, "w", encoding="utf-8") as bf:

@@ -472,20 +472,28 @@ function checkUpdate(silent = false){
 function applyUpdate(){
   if(!_updateInfo || !_updateInfo.download_url) return;
   const btn = document.getElementById('btn-apply-update');
+  const checkBtn = document.getElementById('btn-check-update');
   if(btn) {
     btn.disabled = true;
     btn.textContent = '⏳ Загрузка обновления...';
   }
+  if(checkBtn) {
+    checkBtn.disabled = true;
+  }
   pywebview.api.apply_update(_updateInfo.download_url).then(res=>{
     if(res && res.success){
       if(res.restarting){
-        if(btn) btn.textContent = '🚀 Перезапуск приложения...';
+        if(btn) {
+          btn.disabled = true;
+          btn.textContent = '🚀 Перезапуск приложения...';
+        }
       } else if(res.dev_mode){
         alert(res.message);
         if(btn) {
           btn.disabled = false;
           btn.textContent = '📥 Скачать и установить обновление';
         }
+        if(checkBtn) checkBtn.disabled = false;
       }
     } else {
       alert('Ошибка при установке обновления: ' + ((res && res.error) || 'неизвестная ошибка'));
@@ -493,6 +501,7 @@ function applyUpdate(){
         btn.disabled = false;
         btn.textContent = '📥 Скачать и установить обновление';
       }
+      if(checkBtn) checkBtn.disabled = false;
     }
   }).catch(e=>{
     alert('Ошибка при скачивании: ' + e);
@@ -500,12 +509,14 @@ function applyUpdate(){
       btn.disabled = false;
       btn.textContent = '📥 Скачать и установить обновление';
     }
+    if(checkBtn) checkBtn.disabled = false;
   });
 }
 
 function onUpdateProgress(pct){
   const btn = document.getElementById('btn-apply-update');
   if(btn) {
+    btn.disabled = true;
     btn.textContent = `⏳ Загрузка (${pct}%)...`;
   }
 }

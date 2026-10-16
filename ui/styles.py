@@ -133,6 +133,7 @@ CSS = r"""
     background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.55);cursor:pointer;
     font-size:12px;transition:all .15s}
   .btn:hover{background:rgba(255,255,255,0.09)}
+  .btn:disabled,.btn[disabled]{opacity:0.45;pointer-events:none;cursor:not-allowed}
   .btn-primary{background:rgba(83,74,183,0.2);border-color:rgba(83,74,183,0.4);color:#a89ef0}
   .btn-primary:hover{background:rgba(83,74,183,0.3)}
   .btn-danger{border-color:rgba(212,83,126,0.3);color:#d4537e}

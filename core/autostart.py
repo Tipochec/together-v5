@@ -23,13 +23,13 @@ def setup_autostart(app_name="Together", enable=True):
         )
         if enable:
             if getattr(sys, 'frozen', False):
-                exe_path = f'"{sys.executable}"'
+                exe_path = f'"{sys.executable}" --autostart'
             else:
                 pythonw = sys.executable.replace("python.exe", "pythonw.exe")
                 script = os.path.abspath(
                     os.path.join(os.path.dirname(__file__), "..", "main.py")
                 )
-                exe_path = f'"{pythonw}" "{script}"'
+                exe_path = f'"{pythonw}" "{script}" --autostart'
             winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
         else:
             try:

@@ -433,14 +433,21 @@ def open_chat_window():
 
 
 def run_webview_loop(tracker, network, stats=None):
-    global _tracker, _network, _window, _stats, _chat_window
+    global _tracker, _network, _window, _stats, _chat_window, _is_window_hidden
     import builtins
+    import sys
 
     _tracker = tracker
     _network = network
     _stats   = stats
     builtins._together_open_window = open_window
     builtins._together_quit        = _do_quit
+
+    # Если запуск из автозагрузки Windows (--autostart) и без флага --show,
+    # прячем в трей. Во всех остальных случаях (ручной запуск пользователем
+    # или перезапуск после обновления) — открываем окно сразу.
+    start_hidden = ("--autostart" in sys.argv) and ("--show" not in sys.argv)
+    _is_window_hidden = start_hidden
 
     api = WindowAPI()
     _window = webview.create_window(
@@ -453,7 +460,7 @@ def run_webview_loop(tracker, network, stats=None):
         frameless=True,
         easy_drag=False,
         background_color="#0f0f13",
-        hidden=True,
+        hidden=start_hidden,
     )
 
     def _on_incoming_message(data):
