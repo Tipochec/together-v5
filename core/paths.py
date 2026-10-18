@@ -34,12 +34,21 @@ def is_frozen():
 
 
 def is_test_instance():
+    # Явные флаги командной строки
     if "--test" in sys.argv or "--dev" in sys.argv or "--multi" in sys.argv:
         return True
-    exe_path = (sys.executable or "").lower().replace("/", "\\")
-    if "programs\\together\\together.exe" in exe_path:
-        return False
-    return True
+    # Если файл называется Together_Test.exe или содержит test в имени файла
+    exe_name = os.path.basename(sys.executable or "").lower()
+    if "test" in exe_name:
+        return True
+    # Маркерный файл .test рядом с exe
+    try:
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable or sys.argv[0]))
+        if os.path.exists(os.path.join(exe_dir, ".test")) or os.path.exists(os.path.join(exe_dir, "test_mode.txt")):
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def data_dir():
