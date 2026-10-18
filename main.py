@@ -19,27 +19,15 @@ _instance_mutex = None  # держим ссылку на хендл, чтобы 
 
 def _acquire_single_instance_lock():
     """Не даёт запустить второй экземпляр приложения одновременно.
-
-    Без этой защиты случайный повторный запуск (например, второе окно
-    консоли с `python main.py`, пока предыдущий процесс всё ещё висит в
-    трее — приложение сворачивается, а не завершается при закрытии окна)
-    поднимает второй набор серверного/клиентского сокетов на том же
-    порту 39721. На Windows SO_REUSEADDR ведёт себя не так, как на Linux,
-    и может позволить второму процессу перехватить порт первого —
-    входящие подключения от партнёра начинают непредсказуемо доставаться
-    то одному, то другому процессу, а исходящие сообщения расходятся по
-    двум независимым, не знающим друг о друге копиям сети. Со стороны
-    это выглядит как рандомное "то доходит, то нет".
-
-    Используем именованный Windows-мьютекс — он живёт в ядре ОС и
-    гарантированно освобождается при завершении процесса, даже если тот
-    упал аварийно (в отличие от, например, lock-файла на диске).
+    Тестовый билд использует свой отдельный мьютекс, чтобы работать параллельно с основным.
     """
     global _instance_mutex
     try:
         import ctypes
+        from core.paths import is_test_instance
+        mutex_name = "Together_Test_SingleInstance_Mutex_9f3c2a" if is_test_instance() else _MUTEX_NAME
         ERROR_ALREADY_EXISTS = 183
-        _instance_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, _MUTEX_NAME)
+        _instance_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, mutex_name)
         if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
             return False
         return True
@@ -50,22 +38,26 @@ def _acquire_single_instance_lock():
 
 
 def _warn_already_running():
-    msg = "Together уже запущен — проверьте трей (значок в правом нижнем углу) или диспетчер задач."
+    from core.paths import is_test_instance
+    prefix = "Together (Тест)" if is_test_instance() else "Together"
+    msg = f"{prefix} уже запущен — проверьте трей (значок в правом нижнем углу) или диспетчер задач."
     print(msg)
     try:
         import ctypes
-        hwnd = ctypes.windll.user32.FindWindowW(None, "Together")
+        hwnd = ctypes.windll.user32.FindWindowW(None, prefix)
         if hwnd:
             ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
             ctypes.windll.user32.SetForegroundWindow(hwnd)
             return
-        ctypes.windll.user32.MessageBoxW(0, msg, "Together", 0x30)  # MB_ICONWARNING
+        ctypes.windll.user32.MessageBoxW(0, msg, prefix, 0x30)  # MB_ICONWARNING
     except Exception:
         pass
 
 
 def main():
-    setup_autostart_once()
+    from core.paths import is_test_instance
+    if not is_test_instance():
+        setup_autostart_once()
 
     tracker = ActivityTracker()
     network = NetworkManager(tracker)

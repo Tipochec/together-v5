@@ -58,9 +58,10 @@ class WindowAPI:
                 "title":    current.get("title",""),
                 "since":    current.get("since", datetime.now()).isoformat(),
                 "category": current.get("category","other"),
-                "afk":      current.get("afk", False),
-                "status":    current.get("status", "active"),
-                "name":     s.get("name") or "Я",
+                "afk":        current.get("afk", False),
+                "status":     current.get("status", "active"),
+                "manual_afk": _tracker.is_manual_afk() if _tracker else False,
+                "name":       s.get("name") or "Я",
                 "gender":   s.get("gender") or "male",
                 "avatar":   s.get("avatar") or "",
             },
@@ -314,6 +315,11 @@ class WindowAPI:
             return _network.send_heart()
         return False
 
+    def toggle_afk(self):
+        if _tracker:
+            return _tracker.toggle_manual_afk()
+        return False
+
     def quit_app(self):
         _do_quit()
         
@@ -413,8 +419,10 @@ def open_chat_window():
         except Exception:
             _chat_window = None  # окно было уничтожено снаружи — создадим заново
 
+    from core.paths import is_test_instance
+    chat_title = "Together (Тест) • Чат" if is_test_instance() else "Together • Чат"
     _chat_window = webview.create_window(
-        title="Together • Чат",
+        title=chat_title,
         html=CHAT_HTML,
         js_api=WindowAPI(),
         width=380,
@@ -443,15 +451,15 @@ def run_webview_loop(tracker, network, stats=None):
     builtins._together_open_window = open_window
     builtins._together_quit        = _do_quit
 
-    # Если запуск из автозагрузки Windows (--autostart) и без флага --show,
-    # прячем в трей. Во всех остальных случаях (ручной запуск пользователем
-    # или перезапуск после обновления) — открываем окно сразу.
     start_hidden = ("--autostart" in sys.argv) and ("--show" not in sys.argv)
     _is_window_hidden = start_hidden
 
+    from core.paths import is_test_instance
+    win_title = "Together (Тест)" if is_test_instance() else "Together"
+
     api = WindowAPI()
     _window = webview.create_window(
-        title="Together",
+        title=win_title,
         html=HTML,
         js_api=api,
         width=520,

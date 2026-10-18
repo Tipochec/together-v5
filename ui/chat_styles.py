@@ -119,7 +119,7 @@ body{
     left:10px;
     right:10px;
     bottom:65px;
-    max-height:180px;
+    max-height:220px;
     background:#1a1820;
     border:0.5px solid rgba(255,255,255,0.1);
     border-radius:12px;
@@ -128,11 +128,71 @@ body{
     overflow-y:auto;
     z-index:20;
 }
+.emoji-picker::-webkit-scrollbar{
+    width:6px;
+}
+.emoji-picker::-webkit-scrollbar-track{
+    background:transparent;
+}
+.emoji-picker::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.12);
+    border-radius:10px;
+}
+.emoji-picker::-webkit-scrollbar-thumb:hover{
+    background:rgba(255,255,255,0.22);
+}
+
+.emoji-tabs{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding-bottom:6px;
+    margin-bottom:6px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    position:sticky;
+    top:0;
+    background:#1a1820;
+    z-index:2;
+}
+
+.emoji-tab{
+    flex:1;
+    height:28px;
+    border:none;
+    border-radius:6px;
+    background:transparent;
+    font-size:15px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:all 0.15s ease;
+    opacity:0.55;
+    outline:none;
+}
+
+.emoji-tab:hover{
+    background:rgba(255,255,255,0.08);
+    opacity:0.9;
+}
+
+.emoji-tab.active{
+    background:rgba(83,74,183,0.35);
+    opacity:1;
+}
 
 .emoji-grid{
     display:grid;
     grid-template-columns:repeat(8,1fr);
     gap:2px;
+}
+
+.emoji-grid.kaomoji-layout{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    justify-content:center;
+    padding-top:4px;
 }
 
 .emoji-item{
@@ -150,6 +210,25 @@ body{
     background:rgba(255,255,255,0.08);
 }
 
+.kaomoji-item{
+    padding:7px 11px;
+    font-size:12px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px;
+    cursor:pointer;
+    user-select:none;
+    color:#e5e2ff;
+    transition:all 0.15s ease;
+    white-space:nowrap;
+}
+.kaomoji-item:hover{
+    background:rgba(83,74,183,0.3);
+    border-color:rgba(83,74,183,0.5);
+    transform:translateY(-1px);
+    color:#fff;
+}
+
 .message{
     max-width:75%;
     padding:10px 54px 10px 14px;
@@ -163,6 +242,11 @@ body{
 .msg-text{
     white-space:pre-wrap;
     user-select:text;
+}
+
+.msg-text.big-emoji{
+    font-size:32px;
+    line-height:1.2;
 }
 
 .msg-copy{

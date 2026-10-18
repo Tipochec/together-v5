@@ -21,11 +21,35 @@ CSS = r"""
   .content::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
   .card{background:#1a1820;border:0.5px solid rgba(255,255,255,0.07);border-radius:14px;
-    padding:14px;border-top:2.5px solid transparent;transition:opacity .3s,filter .3s}
+    padding:14px;border-top:2.5px solid transparent;transition:all .5s cubic-bezier(0.4, 0, 0.2, 1)}
   .card-you,.card-her{border-top-color:transparent}
   .gender-male{border-top-color:#534ab7 !important}
   .gender-female{border-top-color:#d4537e !important}
   .offline-card{opacity:.4;filter:grayscale(40%)}
+  .afk-card{
+    opacity:0.65;
+    background:#14121a !important;
+    border-color:rgba(240,179,82,0.22) !important;
+    box-shadow:0 4px 20px rgba(0,0,0,0.35), inset 0 0 25px rgba(240,179,82,0.03);
+    animation:afkSleepBreathing 4s ease-in-out infinite alternate;
+  }
+  @keyframes afkSleepBreathing{
+    0%{opacity:0.7;filter:grayscale(15%) brightness(0.92)}
+    100%{opacity:0.48;filter:grayscale(35%) brightness(0.82)}
+  }
+  .afk-card .card-app{color:rgba(240,238,255,0.55) !important}
+  .afk-card .card-title{color:rgba(255,255,255,0.2) !important}
+  .afk-card .avatar{filter:brightness(0.85) grayscale(20%)}
+  .afk-card .badge-idle{
+    background:rgba(240,179,82,0.16) !important;
+    color:#f0b352 !important;
+    border:0.5px solid rgba(240,179,82,0.35);
+    animation:afkBadgePulse 2.5s ease-in-out infinite;
+  }
+  @keyframes afkBadgePulse{
+    0%,100%{transform:scale(1);opacity:0.85}
+    50%{transform:scale(1.06);opacity:1}
+  }
   .btn-heart-ping{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;
     border:none;background:rgba(212,83,126,0.18);color:#d4537e;cursor:pointer;font-size:14px;
     display:flex;align-items:center;justify-content:center;transition:all .2s ease;outline:none;
@@ -33,6 +57,13 @@ CSS = r"""
   .btn-heart-ping:hover{background:rgba(212,83,126,0.4);transform:scale(1.2)}
   .btn-heart-ping:active{transform:scale(0.9)}
   .btn-heart-ping.sent{animation:heartBeat 0.6s ease}
+  .btn-heart-ping.cooldown{opacity:0.35 !important;cursor:not-allowed !important;pointer-events:none;transform:scale(0.85);filter:grayscale(60%) !important}
+  .btn-afk-toggle{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;
+    border:none;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);cursor:pointer;font-size:13px;
+    display:flex;align-items:center;justify-content:center;transition:all .2s ease;outline:none;
+    z-index:10}
+  .btn-afk-toggle:hover{background:rgba(255,255,255,0.15);transform:scale(1.15);color:#fff}
+  .btn-afk-toggle.active{background:rgba(240,179,82,0.25);color:#f0b352;box-shadow:0 0 10px rgba(240,179,82,0.35)}
   @keyframes heartBeat{0%{transform:scale(1)}30%{transform:scale(1.4)}60%{transform:scale(0.9)}100%{transform:scale(1)}}
   .heart-burst{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:99999}
   .flying-heart{position:absolute;font-size:18px;animation:flyUp 1.2s ease-out forwards}

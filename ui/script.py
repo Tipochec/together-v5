@@ -175,14 +175,25 @@ function updateCard(prefix,data,online){
   cardEl.classList.remove('gender-male','gender-female');
   cardEl.classList.add(genderClass);
   avatarEl.classList.remove('gender-male','gender-female');
-  avatarEl.classList.add(genderClass);
-  const status=data.status||'active';
+  const status=(data.afk||data.status==='afk')?'afk':(data.status||'active');
   const cat=status==='afk'?'idle':(data.category||'other');
   const badge=document.getElementById(prefix+'-badge');
   badge.className='badge badge-'+(online?cat:'idle');
   if(!online) badge.textContent='офлайн';
   else if(status==='afk') badge.textContent='😴 AFK';
   else badge.textContent=BADGES[cat]||cat;
+
+  cardEl.classList.toggle('afk-card', online && status === 'afk');
+
+  if(prefix==='my'){
+    const afkBtn=document.getElementById('btn-toggle-afk');
+    if(afkBtn){
+      const isManual=!!data.manual_afk;
+      afkBtn.classList.toggle('active',isManual);
+      afkBtn.textContent=isManual?'💤':'🌙';
+      afkBtn.title=isManual?'Режим AFK активен (нажми, чтобы снять)':'Объявить AFK (Я отошёл)';
+    }
+  }
 }
 
 let _prevFirst={you:'',her:''};
@@ -779,16 +790,40 @@ function setChatBadge(show){
   if(b) b.style.display = show ? 'block' : 'none';
 }
 
+let _lastHeartSent = 0;
 function sendHeartPing(){
+  const now = Date.now();
+  if(now - _lastHeartSent < 1500) return; // Защита от спама и автокликера (1.5 сек КД)
+  _lastHeartSent = now;
+
   const btn = document.getElementById('btn-send-heart');
   if(btn){
-    btn.classList.add('sent');
-    setTimeout(()=>btn.classList.remove('sent'), 700);
+    btn.classList.add('sent', 'cooldown');
+    btn.disabled = true;
+    setTimeout(()=>btn.classList.remove('sent'), 600);
+    setTimeout(()=>{
+      btn.classList.remove('cooldown');
+      btn.disabled = false;
+    }, 1500);
   }
   spawnHeartAnimation();
   showHeartBanner('ОХАЁ)');
   if(window.pywebview && window.pywebview.api && window.pywebview.api.send_heart){
     window.pywebview.api.send_heart().catch(e=>console.error('Heart send error:', e));
+  }
+}
+
+function toggleAfk(){
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.toggle_afk){
+    window.pywebview.api.toggle_afk().then(isAfk=>{
+      const btn = document.getElementById('btn-toggle-afk');
+      if(btn){
+        btn.classList.toggle('active', isAfk);
+        btn.textContent = isAfk ? '💤' : '🌙';
+        btn.title = isAfk ? 'Режим AFK активен (нажми, чтобы снять)' : 'Объявить AFK (Я отошёл)';
+      }
+      tick();
+    }).catch(e=>console.error('toggle_afk error:', e));
   }
 }
 

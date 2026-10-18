@@ -29,11 +29,13 @@ class TrayApp:
             network.on_status_change(self._on_connection_change)
 
     def run(self):
+        from core.paths import is_test_instance
+        app_title = "Together (Тест)" if is_test_instance() else "Together"
         image = self._create_icon_image()
         self._icon = pystray.Icon(
-            name="Together",
+            name=app_title,
             icon=image,
-            title="Together",
+            title=app_title,
             menu=self._build_menu()
         )
         self._icon.run()

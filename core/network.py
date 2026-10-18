@@ -552,6 +552,7 @@ class NetworkManager:
             "title": current.get("title", ""),
             "category": current.get("category", "other"),
             "afk":  current.get("afk", False),
+            "status": "afk" if current.get("afk", False) else "active",
             "since": current.get("since", datetime.now()).isoformat(),
             # Моё СОБСТВЕННОЕ время запуска приложения — партнёр покажет
             # у себя именно его как "в сети с", а не момент, когда ОН меня
@@ -571,30 +572,18 @@ class NetworkManager:
         }
         
     def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None):
-        text = text.strip()
+        text = (text or "").strip()
 
         if not text:
             return
 
         settings = load_settings()
 
-        # msg_uid генерируется здесь, ДО сохранения в свою локальную БД —
-        # один и тот же uid должен оказаться и в своей записи, и в пакете,
-        # который улетит партнёру, иначе его "ответить на сообщение" не
-        # сможет сослаться на это сообщение (см. core/chat.py).
         msg_uid = uuid.uuid4().hex
 
         packet = {
             "type": "message",
             "pairing_key": (settings.get("pairing_key") or "").strip(),
-            # Раньше тут стояло `or "Я"` — если у партнёра не заполнено имя
-            # в настройках, в сеть уходил буквальный текст "Я" как имя
-            # отправителя. Через сокет он долетал до тебя как есть и
-            # показывался в чате как "Я" — то есть её реальные сообщения
-            # приходили, просто подписывались так, что их легко спутать
-            # со своими же. Отправляем пустую строку — на приёме уже есть
-            # штатный fallback на "Партнёр" (см. _process_message ниже и
-            # chat_script.py), он и сработает как надо.
             "sender": settings.get("name") or "",
             "text": text[:1000],
             "time": datetime.now().isoformat(),
@@ -627,7 +616,12 @@ class NetworkManager:
             _log("MSG: нет связи с сервером — сохранено только в локальную базу")
 
     def send_heart(self):
-        """Отправляет сигнал сердечка ('думаю о тебе') партнёру"""
+        """Отправляет сигнал сердечка ('думаю о тебе') партнёру с защитой от спама (кд 1.2 сек)"""
+        now = time.time()
+        if now - getattr(self, "_last_heart_sent_at", 0) < 1.2:
+            _log("HEART: отправка пропущена — действует кулдаун")
+            return False
+        self._last_heart_sent_at = now
         try:
             settings = load_settings()
             packet = {
@@ -770,6 +764,11 @@ class NetworkManager:
 
     def _process_heart(self, data):
         self._last_seen = time.time()
+        now = time.time()
+        if now - getattr(self, "_last_heart_received_at", 0) < 1.0:
+            _log("HEART: входящее сердечко пропущено — спам-фильтр (слишком частые сигналы)")
+            return
+        self._last_heart_received_at = now
         sender = data.get("sender") or "Партнёр"
         _log(f"HEART: получено сердечко от {sender}")
         for cb in list(self._on_heart):

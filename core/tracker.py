@@ -126,6 +126,28 @@ class ActivityTracker:
         self._session_db_id = None   # id строки в sessions — для UPDATE вместо повторного INSERT
         self._last_checkpoint = time.time()
 
+        # Ручной режим AFK («Я отошёл») с умным авто-выходом
+        self._manual_afk = False
+        self._manual_afk_time = 0
+        self._grace_period = 30   # 30 секунд защитный интервал при нажатии
+
+    def toggle_manual_afk(self):
+        with self._lock:
+            self._manual_afk = not self._manual_afk
+            self._manual_afk_time = time.time() if self._manual_afk else 0
+            new_status = "afk" if self._manual_afk else "active"
+            self.current["status"] = new_status
+            self.current["afk"] = (new_status == "afk")
+            current_copy = dict(self.current)
+        for cb in self._on_change_callbacks:
+            try: cb(current_copy)
+            except Exception: pass
+        return self._manual_afk
+
+    def is_manual_afk(self):
+        with self._lock:
+            return self._manual_afk
+
     def on_change(self, cb):
         self._on_change_callbacks.append(cb)
 
@@ -151,8 +173,9 @@ class ActivityTracker:
 
     def start(self):
         self._running  = True
-        prev_app   = None
-        prev_title = None
+        prev_app    = None
+        prev_title  = None
+        prev_status = None
 
         while self._running:
             try:
@@ -164,7 +187,7 @@ class ActivityTracker:
                 if settings.get("private_mode") and proc_name.lower() in BROWSER_PROCESSES:
                     title = ""
 
-                changed = (app != prev_app or title != prev_title)
+                changed = (app != prev_app or title != prev_title or status != prev_status)
 
                 if changed:
                     now = datetime.now()
@@ -180,11 +203,11 @@ class ActivityTracker:
                                 pass
                             else:
                                 self.history.appendleft({
-                                    "app":       prev_app,
-                                    "title":     prev_title,
-                                    "category":  CATEGORIES.get(prev_app, "other"),
-                                    "timestamp": self.current["since"],
-                                })
+                                     "app":       prev_app,
+                                     "title":     prev_title,
+                                     "category":  CATEGORIES.get(prev_app, "other"),
+                                     "timestamp": self.current["since"],
+                                 })
                         self.current = {
                             "app":      app,
                             "title":    title,
@@ -193,8 +216,9 @@ class ActivityTracker:
                             "status":   status,
                             "afk":      status == "afk",
                         }
-                    prev_app   = app
-                    prev_title = title
+                    prev_app    = app
+                    prev_title  = title
+                    prev_status = status
                     for cb in self._on_change_callbacks:
                         try: cb(self.current)
                         except Exception: pass
@@ -340,11 +364,18 @@ class ActivityTracker:
                     pass
 
     def _calc_status(self, idle_secs, app, title):
-        # Единственный критерий — бездействие клавиатуры/мыши.
-        # Что при этом происходит на экране (ютуб, фильм, музыка) —
-        # не имеет значения: сидит человек и правда смотрит или
-        # отошёл на час, оставив видео включённым — с точки зрения
-        # трекера активности это AFK.
+        # 1. Если включён ручной режим AFK («Я отошёл»):
+        if self._manual_afk:
+            # Умный выход из AFK:
+            # Если прошло больше grace_period (30 сек) с момента нажатия,
+            # и пользователь вернулся за ПК (пошевелил мышь или нажал клавишу: idle_secs < 2 сек)
+            if (time.time() - self._manual_afk_time) > self._grace_period and idle_secs < 2.0:
+                self._manual_afk = False
+                return "active"
+            return "afk"
+
+        # 2. Автоматический режим (по умолчанию):
+        # Единственный критерий — бездействие клавиатуры/мыши AFK_TIMEOUT секунд (10 минут).
         return "active" if idle_secs < AFK_TIMEOUT else "afk"
 
     def _get_idle_seconds(self):

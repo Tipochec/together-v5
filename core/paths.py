@@ -33,13 +33,40 @@ def is_frozen():
     return bool(getattr(sys, "frozen", False))
 
 
+def is_test_instance():
+    if "--test" in sys.argv or "--dev" in sys.argv or "--multi" in sys.argv:
+        return True
+    exe_path = (sys.executable or "").lower().replace("/", "\\")
+    if "programs\\together\\together.exe" in exe_path:
+        return False
+    return True
+
+
 def data_dir():
     if is_frozen():
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
-        path = os.path.join(base, "Together")
+        sub = "Together_Test" if is_test_instance() else "Together"
+        path = os.path.join(base, sub)
     else:
         path = _project_root()
     os.makedirs(path, exist_ok=True)
+
+    # Если это тестовая копия и у неё ещё нет settings.json, копируем из основной
+    if is_test_instance():
+        test_settings = os.path.join(path, "settings.json")
+        main_settings = os.path.join(os.environ.get("APPDATA") or "", "Together", "settings.json")
+        if not os.path.exists(test_settings) and os.path.exists(main_settings):
+            try:
+                import json
+                with open(main_settings, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                import uuid
+                cfg["device_id"] = "dev_test_" + uuid.uuid4().hex[:10]
+                with open(test_settings, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
     return path
 
 

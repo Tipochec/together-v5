@@ -43,6 +43,9 @@ async function loadChat() {
         const body = document.createElement("div");
         body.className = "msg-text";
         body.textContent = msg.text;
+        if (isOnlyEmojis(msg.text)) {
+            body.classList.add("big-emoji");
+        }
         div.appendChild(body);
 
         const time = new Date(msg.time);
@@ -171,18 +174,121 @@ function autoResizeMessageBox() {
     input.style.height = input.scrollHeight + "px";
 }
 
-// Популярные эмодзи — просто статичный набор, ничего скачивать/грузить
-// не нужно, они уже "встроены" как обычный текст (юникод).
-const POPULAR_EMOJIS = [
-    "😀","😂","🤣","😊","😍","🥰","😘","😉","😎","🤩",
-    "🥳","😇","🙃","😅","🤔","🙄","😏","😴","😭","😢",
-    "😡","🤯","😱","🥺","😤","🤗","🤤","🙈","💀","👀",
-    "❤️","🧡","💛","💚","💙","💜","🖤","💔","💕","💖",
-    "👍","👎","👏","🙏","✌️","🤝","💪","👊","🤙","👌",
-    "🔥","✨","🎉","🎁","⭐","💯","☕","🍕","🍺","🌹",
-];
+function isOnlyEmojis(str) {
+    if (!str) return false;
+    const clean = str.trim();
+    if (!clean) return false;
+    const emojiRegex = /^(?:\p{Extended_Pictographic}|\u200d|\ufe0f|\u20e3|\s)+$/u;
+    if (!emojiRegex.test(clean)) return false;
+    const count = [...clean.replace(/\s+/g, '')].length;
+    return count > 0 && count <= 8;
+}
 
-let _emojiPickerFilled = false;
+const EMOJI_CATEGORIES = {
+    faces: [
+        "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇",
+        "🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚",
+        "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
+        "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
+        "😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🤧",
+        "🥵","🥶","🥴","😵","🤯","🤠","🥳","😎","🤓","🧐",
+        "😕","😟","🙁","😮","😯","😲","😳","🥺","😦","😧",
+        "😨","😰","😥","😢","😭","😱","😖","😣","😞","😓",
+        "😩","😫","🥱","😤","😡","😠","🤬","😈","👿","💀",
+        "☠️","💩","🤡","👻","👽","🤖"
+    ],
+    love: [
+        "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
+        "❣️","💕","💞","💓","💗","💖","💘","💝","💟","💌",
+        "💋","💏","💑","🫂","💍","💐","🌹","🥀","🌺","🌸",
+        "🌷","🌻","🌼","💮","🎀","🎁","✨","🪄","🎆","🎇"
+    ],
+    cute: [
+        "🐱","😸","😹","😻","😼","😽","🙀","😿","😾","🐶",
+        "🐕","🦮","🐩","🐺","🦊","🦁","🐯","🐅","🐆","🐴",
+        "🦄","🦓","🦌","🐮","🐂","🐷","🐖","🐗","🐭","🐹",
+        "🐰","🐇","🐻","🧸","🐼","🐥","🐣","🦆","🦉","🐬",
+        "🐳","🐋","🐟","🐠","🐡","🦋","🐝","🐞","🐢","🐙"
+    ],
+    gestures: [
+        "👍","👎","👏","🙌","👐","🤲","🤝","🙏","✍️","💅",
+        "🤳","💪","🦾","🦵","🦶","👂","🦻","👃","🧠","👁️",
+        "👀","👅","👄","☝️","👆","👇","👈","👉","✌️","🤞",
+        "🤟","🤘","🤙","👋","🖐️","✋","🖖","👊","🤛","🤜",
+        "✊","🖕"
+    ],
+    vibes: [
+        "🔥","✨","⭐","🌟","💫","⚡","💥","💯","🎉","🎊",
+        "🎈","🎁","🏆","🥇","🎮","🕹️","🎲","🎵","🎶","🎧",
+        "☕","🍵","🥤","🍺","🍻","🥂","🍷","🍕","🍔","🍟",
+        "🍣","🍱","🍜","🍰","🧁","🍦","🍫","🍿","🍩","🍓"
+    ],
+    kaomoji: [
+        "(づ｡◕‿‿◕｡)づ",
+        "(っ˘з(˘⌣˘ )",
+        "(｡♥‿♥｡)",
+        "(=^･ω･^=)",
+        "ʕ•ᴥ•ʔ",
+        "(つ✧ω✧)つ",
+        "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
+        "(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)",
+        "(*＾3＾)/～♡",
+        "(っ- ‸ - ς)",
+        "(•́へ•́╬)",
+        "╰(▔∀▔)╯",
+        "( ๑ ❛ ڡ ❛ ๑ )",
+        "٩(◕‿◕｡)۶",
+        "(¬_¬ )",
+        "¯\\_(ツ)_/¯",
+        "(눈_눈)",
+        "(╥﹏╥)",
+        "(っ.❛ ᴗ ❛.)っ",
+        "(♡˙︶˙♡)",
+        "(o˘◡˘o)",
+        "(*♡∀♡)",
+        "(*/_＼)",
+        "(⌒‿⌒)"
+    ]
+};
+
+let _currentEmojiTab = "faces";
+let _emojiPickerInitialized = false;
+
+function switchEmojiTab(tabName) {
+    _currentEmojiTab = tabName;
+    document.querySelectorAll(".emoji-tab").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+    renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+    const grid = document.getElementById("emoji-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    const isKaomoji = _currentEmojiTab === "kaomoji";
+    grid.classList.toggle("kaomoji-layout", isKaomoji);
+    const list = EMOJI_CATEGORIES[_currentEmojiTab] || EMOJI_CATEGORIES.faces;
+    for (const item of list) {
+        const el = document.createElement("span");
+        el.className = isKaomoji ? "kaomoji-item" : "emoji-item";
+        el.textContent = item;
+        el.onclick = () => insertEmoji(item);
+        grid.appendChild(el);
+    }
+}
+
+let _emojiPickerInitialized = false;
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 function toggleEmojiPicker() {
     const panel = document.getElementById("emoji-picker");
@@ -193,12 +299,9 @@ function toggleEmojiPicker() {
         return;
     }
 
-    if (!_emojiPickerFilled) {
-        const grid = document.getElementById("emoji-grid");
-        grid.innerHTML = POPULAR_EMOJIS
-            .map(e => `<span class="emoji-item" onclick="insertEmoji('${e}')">${e}</span>`)
-            .join("");
-        _emojiPickerFilled = true;
+    if (!_emojiPickerInitialized) {
+        renderEmojiGrid();
+        _emojiPickerInitialized = true;
     }
     panel.style.display = "block";
 }
@@ -208,8 +311,10 @@ function insertEmoji(emoji) {
     if (input) {
         const start = input.selectionStart ?? input.value.length;
         const end   = input.selectionEnd   ?? input.value.length;
-        input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-        const caret = start + emoji.length;
+        const prefix = (start > 0 && input.value[start - 1] !== ' ' && emoji.length > 2) ? ' ' : '';
+        const suffix = (emoji.length > 2) ? ' ' : '';
+        input.value = input.value.slice(0, start) + prefix + emoji + suffix + input.value.slice(end);
+        const caret = start + prefix.length + emoji.length + suffix.length;
         input.focus();
         input.setSelectionRange(caret, caret);
     }
@@ -259,6 +364,24 @@ window.addEventListener("pywebviewready", () => {
             // textarea, как в обычном мессенджере.
         });
         input.addEventListener("input", autoResizeMessageBox);
+
+        // Фикс зависания при вставке изображений из буфера обмена на
+        // Windows 11: WebView2 пытается обработать бинарный контент и
+        // зависает на 2-3 секунды. Проверяем каждый item в буфере —
+        // если нет ни одного text/plain, сразу отменяем событие и тихо
+        // игнорируем вставку. Текст проходит без изменений.
+        input.addEventListener("paste", (e) => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            let hasText = false;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type === "text/plain") { hasText = true; break; }
+            }
+            if (!hasText) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
     }
 });
 

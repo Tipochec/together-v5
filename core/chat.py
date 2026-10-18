@@ -49,6 +49,7 @@ class ChatManager:
                 ("reply_to_uid", "TEXT"),
                 ("reply_sender", "TEXT"),
                 ("reply_text", "TEXT"),
+                ("sticker", "TEXT"),
             ]:
                 col_name, col_type = col_def
                 if col_name not in existing_cols:
@@ -57,12 +58,6 @@ class ChatManager:
 
     def add_message(self, sender, text, incoming, msg_uid=None,
                      reply_to_uid=None, reply_sender=None, reply_text=None):
-        # msg_uid должен быть один и тот же и в локальной записи
-        # отправителя, и в пакете, который улетает партнёру — поэтому
-        # генерируем его здесь только если он ещё не передан (входящие
-        # сообщения приносят msg_uid партнёра с собой, свои собственные —
-        # генерируются заранее в network.py ДО вызова add_message, чтобы
-        # тот же uid ушёл и в сеть).
         msg_uid = msg_uid or uuid.uuid4().hex
         with self._lock:
             with self._connect() as conn:

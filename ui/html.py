@@ -1,6 +1,9 @@
 from .styles import CSS
 from .script import JS
 from core.version import APP_VERSION
+from core.paths import is_test_instance
+
+test_tag = '<span style="font-size:10px;font-weight:700;padding:1px 6px;background:#e5484d;color:#fff;border-radius:4px;margin-left:6px;vertical-align:middle;display:inline-block;">ТЕСТ</span>' if is_test_instance() else ''
 
 HTML = r"""
 <!DOCTYPE html>
@@ -14,7 +17,7 @@ HTML = r"""
 </head>
 <body>
 <div class="titlebar pywebview-drag-region">
-  <div class="titlebar-title"><span class="heart">♥</span> Together</div>
+  <div class="titlebar-title"><span class="heart">♥</span> Together{test_tag}</div>
     <div class="titlebar-btns">
         <button class="titlebar-btn" id="btn-chat" onclick="openChat()" title="Чат" style="position:relative">
           💬
@@ -40,7 +43,8 @@ HTML = r"""
       <span class="status-text" id="conn-text">ожидание партнёра...</span>
     </div>
     <div class="cards">
-      <div class="card card-you" id="my-card">
+      <div class="card card-you" id="my-card" style="position:relative">
+        <button id="btn-toggle-afk" class="btn-afk-toggle" onclick="toggleAfk()" title="Я отошёл (AFK)">🌙</button>
         <div class="online-since" id="my-online-since"></div>
         <div class="avatar" id="my-avatar">Я</div>
         <div class="card-label" id="my-label">ты</div>
@@ -216,7 +220,6 @@ HTML = r"""
     </div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button class="btn btn-primary" id="btn-save" onclick="saveSettings()">Сохранить</button>
-      <button class="btn btn-danger" onclick="pywebview.api.quit_app()">Выйти</button>
     </div>
     <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -257,4 +260,5 @@ HTML = HTML.format(
     styles=CSS,
     script=JS,
     version=APP_VERSION,
+    test_tag=test_tag,
 )
