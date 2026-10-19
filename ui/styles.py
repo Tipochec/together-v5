@@ -21,34 +21,34 @@ CSS = r"""
   .content::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
   .card{background:#1a1820;border:0.5px solid rgba(255,255,255,0.07);border-radius:14px;
-    padding:14px;border-top:2.5px solid transparent;transition:all .5s cubic-bezier(0.4, 0, 0.2, 1)}
+    padding:14px;border-top:2.5px solid transparent;transition:all 0.9s cubic-bezier(0.4, 0, 0.2, 1)}
   .card-you,.card-her{border-top-color:transparent}
   .gender-male{border-top-color:#534ab7 !important}
   .gender-female{border-top-color:#d4537e !important}
   .offline-card{opacity:.4;filter:grayscale(40%)}
   .afk-card{
-    opacity:0.65;
-    background:#14121a !important;
-    border-color:rgba(240,179,82,0.22) !important;
-    box-shadow:0 4px 20px rgba(0,0,0,0.35), inset 0 0 25px rgba(240,179,82,0.03);
-    animation:afkSleepBreathing 4s ease-in-out infinite alternate;
+    background:#110f17 !important;
+    border-color:rgba(240,179,82,0.18) !important;
+    border-top-color:rgba(240,179,82,0.4) !important;
+    box-shadow:0 6px 26px rgba(0,0,0,0.45), inset 0 0 25px rgba(240,179,82,0.02);
+    animation:afkSleepFade 4.5s ease-in-out infinite alternate;
   }
-  @keyframes afkSleepBreathing{
-    0%{opacity:0.7;filter:grayscale(15%) brightness(0.92)}
-    100%{opacity:0.48;filter:grayscale(35%) brightness(0.82)}
+  @keyframes afkSleepFade{
+    0%{opacity:0.62;filter:brightness(0.85) grayscale(20%)}
+    100%{opacity:0.42;filter:brightness(0.68) grayscale(45%)}
   }
-  .afk-card .card-app{color:rgba(240,238,255,0.55) !important}
-  .afk-card .card-title{color:rgba(255,255,255,0.2) !important}
-  .afk-card .avatar{filter:brightness(0.85) grayscale(20%)}
+  .afk-card .card-app{color:rgba(220,218,240,0.5) !important}
+  .afk-card .card-title{color:rgba(255,255,255,0.18) !important}
+  .afk-card .avatar{filter:brightness(0.7) grayscale(30%);opacity:0.75;transition:all .8s ease}
   .afk-card .badge-idle{
-    background:rgba(240,179,82,0.16) !important;
+    background:rgba(240,179,82,0.12) !important;
     color:#f0b352 !important;
-    border:0.5px solid rgba(240,179,82,0.35);
-    animation:afkBadgePulse 2.5s ease-in-out infinite;
+    border:0.5px solid rgba(240,179,82,0.25);
+    animation:afkBadgePulse 3s ease-in-out infinite;
   }
   @keyframes afkBadgePulse{
-    0%,100%{transform:scale(1);opacity:0.85}
-    50%{transform:scale(1.06);opacity:1}
+    0%,100%{transform:scale(1);opacity:0.8}
+    50%{transform:scale(1.05);opacity:1}
   }
   .btn-heart-ping{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;
     border:none;background:rgba(212,83,126,0.18);color:#d4537e;cursor:pointer;font-size:14px;
@@ -136,9 +136,8 @@ CSS = r"""
   }
   #page-settings,#page-stats{display:none}
   .settings-row{display:flex;justify-content:space-between;align-items:center;
-    padding:11px 0 11px 10px;margin-left:-10px;border-bottom:0.5px solid rgba(255,255,255,0.05);
-    font-size:13px;border-left:2.5px solid transparent;transition:background .2s,border-color .2s}
-  .settings-row.settings-dirty{border-left-color:#f0b352;background:rgba(240,179,82,0.06)}
+    padding:11px 0;border-bottom:0.5px solid rgba(255,255,255,0.05);
+    font-size:13px}
   .settings-label{color:rgba(255,255,255,0.55)}
   input.si,select.si{background:#1a1820;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;
     padding:4px 10px;color:#e8e6f0;font-size:12px;width:140px;outline:none}
@@ -216,9 +215,12 @@ CSS = r"""
   .nav-btn{flex:1;padding:6px;border-radius:8px;border:none;background:transparent;
     color:rgba(255,255,255,0.3);cursor:pointer;font-size:12px;transition:all .15s}
   .nav-btn.active{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)}
-  ::-webkit-scrollbar{width:3px}
+  *{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent}
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-button{display:none !important;width:0 !important;height:0 !important}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
     .titlebar-btn{
         width:28px;
         height:28px;
@@ -238,6 +240,129 @@ CSS = r"""
         background:rgba(255,255,255,.07);
         color:rgba(255,255,255,.7);
     }
+
+  .volume-mixer-popup{
+    position:fixed;
+    top:44px;
+    right:68px;
+    width:250px;
+    background:#1a1820;
+    border:0.5px solid rgba(255,255,255,0.12);
+    border-radius:12px;
+    padding:12px 14px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.55);
+    z-index:9999;
+    animation:mixerPop .18s cubic-bezier(0,0,0.2,1);
+  }
+  @keyframes mixerPop{
+    from{opacity:0;transform:translateY(-6px) scale(0.96)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+  .mixer-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+    padding-bottom:6px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+  .mixer-title{
+    font-size:12px;
+    font-weight:600;
+    color:rgba(255,255,255,0.85);
+  }
+  .mixer-close{
+    background:none;
+    border:none;
+    color:rgba(255,255,255,0.4);
+    cursor:pointer;
+    font-size:12px;
+    padding:2px 4px;
+    border-radius:4px;
+    transition:background .15s,color .15s;
+  }
+  .mixer-close:hover{
+    background:rgba(255,255,255,0.08);
+    color:#fff;
+  }
+  .mixer-item{
+    margin-bottom:6px;
+  }
+  .mixer-item-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:11.5px;
+    color:rgba(255,255,255,0.7);
+    margin-bottom:5px;
+  }
+  .mixer-val{
+    font-size:11px;
+    font-weight:600;
+    color:#a89ef0;
+    min-width:32px;
+    text-align:right;
+  }
+  .mixer-val.is-muted{
+    color:rgba(255,255,255,0.3);
+  }
+  .mixer-controls{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .volume-slider{
+    flex:1;
+    -webkit-appearance:none;
+    appearance:none;
+    height:5px;
+    background:rgba(255,255,255,0.1);
+    border-radius:3px;
+    outline:none;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .volume-slider:hover{
+    background:rgba(255,255,255,0.18);
+  }
+  .volume-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:#534ab7;
+    cursor:pointer;
+    border:2px solid #e8e6f0;
+    box-shadow:0 1px 4px rgba(0,0,0,0.4);
+    transition:transform .12s,background .15s;
+  }
+  .volume-slider::-webkit-slider-thumb:hover{
+    transform:scale(1.2);
+    background:#685ec9;
+  }
+  .mixer-test-btn{
+    width:24px;
+    height:24px;
+    border:none;
+    border-radius:6px;
+    background:rgba(83,74,183,0.2);
+    color:#a89ef0;
+    cursor:pointer;
+    font-size:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:all .15s;
+  }
+  .mixer-test-btn:hover{
+    background:rgba(83,74,183,0.4);
+    color:#fff;
+    transform:scale(1.1);
+  }
+  .mixer-test-btn:active{
+    transform:scale(0.95);
+  }
 
   /* Окно редактирования/подтверждения удаления в статистике — тот же
      визуальный стиль, что и confirm-overlay в окне чата (см.

@@ -285,17 +285,7 @@ function removeAvatar(){
 // ── Настройки: отслеживание несохранённых изменений ──────────────
 // Раньше "Приватный режим" сохранялся мгновенно по своему onchange, в
 // обход кнопки "Сохранить" — а остальные поля ждали нажатия кнопки.
-// Это и сбивало с толку ("сохранение не всегда требовало кнопку").
-// Теперь ВСЕ поля настроек, включая приватный режим, копятся только в
-// интерфейсе и уходят в settings.json одним пакетом по кнопке
-// "Сохранить" — а до этого момента изменённая строка подсвечивается,
-// чтобы было видно, что именно поменялось и ещё не сохранено.
-const SETTINGS_FIELDS = {
-  name:                   'inp-name',
-  gender:                 'inp-gender',
-  pairing_key:            'inp-pairing-key',
-  private_mode:           'tog-private',
-};
+
 
 function generatePairingKey(){
   const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -304,7 +294,7 @@ function generatePairingKey(){
   const inp = document.getElementById('inp-pairing-key');
   if(inp){
     inp.value = key;
-    _markSettingsDirty('inp-pairing-key');
+    autoSaveSettings();
   }
 }
 
@@ -352,37 +342,74 @@ function copyPairingKey(btn){
   }
 }
 
-let _settingsBaseline = {};
+let _autoSaveTimer = null;
 
-function _settingsFieldValue(elId){
-  const el = document.getElementById(elId);
-  if(!el) return undefined;
-  return el.type==='checkbox' ? el.checked : el.value;
+function autoSaveSettings(){
+  const nameEl = document.getElementById('inp-name');
+  const genderEl = document.getElementById('inp-gender');
+  const keyEl = document.getElementById('inp-pairing-key');
+  const privEl = document.getElementById('tog-private');
+
+  if(!nameEl || !genderEl || !keyEl || !privEl) return;
+
+  const name = nameEl.value;
+  const gender = genderEl.value;
+  const pairing_key = keyEl.value;
+  const private_mode = privEl.checked;
+
+  // Моментально обновляем интерфейс своей карточки
+  const myCard = document.getElementById('my-card');
+  if(myCard){
+    myCard.classList.remove('gender-male', 'gender-female');
+    myCard.classList.add(gender === 'female' ? 'gender-female' : 'gender-male');
+  }
+  const myAvatar = document.getElementById('my-avatar');
+  if(myAvatar && !myAvatar.classList.contains('has-img') && name){
+    myAvatar.textContent = name[0].toUpperCase();
+  }
+  const myLabel = document.getElementById('my-label');
+  if(myLabel && name) myLabel.textContent = name;
+
+  pywebview.api.save_settings({
+    name: name,
+    gender: gender,
+    pairing_key: pairing_key,
+    private_mode: private_mode,
+  }).catch(e=>console.error('autoSaveSettings error:', e));
 }
 
-function _markSettingsDirty(elId){
-  const el = document.getElementById(elId);
-  if(!el) return;
-  const row = el.closest('.settings-row');
-  if(!row) return;
-  const changed = _settingsFieldValue(elId) !== _settingsBaseline[elId];
-  row.classList.toggle('settings-dirty', changed);
+function triggerAutoSave(debounceMs = 350){
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(autoSaveSettings, debounceMs);
 }
 
-let _settingsWired = false;
-function _wireSettingsDirtyTracking(){
-  if(_settingsWired) return;
-  _settingsWired = true;
-  Object.values(SETTINGS_FIELDS).forEach(elId=>{
-    const el = document.getElementById(elId);
-    if(!el) return;
-    const evt = (el.tagName==='SELECT' || el.type==='checkbox') ? 'change' : 'input';
-    el.addEventListener(evt, ()=>_markSettingsDirty(elId));
-  });
+let _settingsAutoSaveWired = false;
+function _wireSettingsAutoSave(){
+  if(_settingsAutoSaveWired) return;
+  _settingsAutoSaveWired = true;
+
+  const inpName = document.getElementById('inp-name');
+  if(inpName){
+    inpName.addEventListener('input', ()=>triggerAutoSave(350));
+    inpName.addEventListener('change', autoSaveSettings);
+  }
+  const inpGender = document.getElementById('inp-gender');
+  if(inpGender){
+    inpGender.addEventListener('change', autoSaveSettings);
+  }
+  const inpKey = document.getElementById('inp-pairing-key');
+  if(inpKey){
+    inpKey.addEventListener('input', ()=>triggerAutoSave(500));
+    inpKey.addEventListener('change', autoSaveSettings);
+  }
+  const togPrivate = document.getElementById('tog-private');
+  if(togPrivate){
+    togPrivate.addEventListener('change', autoSaveSettings);
+  }
 }
 
 function loadSettings(){
-  _wireSettingsDirtyTracking();
+  _wireSettingsAutoSave();
   pywebview.api.get_app_version().then(v=>{
     const b = document.getElementById('app-version-badge');
     if(b) b.textContent = 'v' + v;
@@ -394,35 +421,6 @@ function loadSettings(){
     document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
     renderAvatarPreview(s.avatar||'');
-
-    // Свежая точка отсчёта "что уже сохранено" + снимаем подсветку
-    Object.entries(SETTINGS_FIELDS).forEach(([key,elId])=>{
-      _settingsBaseline[elId] = _settingsFieldValue(elId);
-    });
-    document.querySelectorAll('.settings-row.settings-dirty')
-      .forEach(r=>r.classList.remove('settings-dirty'));
-  });
-}
-
-function saveSettings(){
-  pywebview.api.save_settings({
-    name:document.getElementById('inp-name').value,
-    gender:document.getElementById('inp-gender').value,
-    pairing_key:document.getElementById('inp-pairing-key').value,
-    private_mode:document.getElementById('tog-private').checked,
-  }).then(()=>{
-    const b=document.getElementById('btn-save');
-    b.textContent='Сохранено ✓';
-    setTimeout(()=>b.textContent='Сохранить',1500);
-
-    // Всё, что только что ушло в JSON, становится новой "базой" —
-    // подсветка изменённых полей снимается, поля возвращаются к
-    // обычному виду ровно так, как просили.
-    Object.entries(SETTINGS_FIELDS).forEach(([key,elId])=>{
-      _settingsBaseline[elId] = _settingsFieldValue(elId);
-    });
-    document.querySelectorAll('.settings-row.settings-dirty')
-      .forEach(r=>r.classList.remove('settings-dirty'));
   });
 }
 
@@ -554,15 +552,8 @@ function reconnectNetwork(){
 }
 
 function toggleAutostart(){
-  const row = document.getElementById('btn-autostart').closest('.settings-row');
   pywebview.api.toggle_autostart().then(on=>{
     document.getElementById('btn-autostart').textContent=on?'включён ✓':'выключен';
-    // Подсветка должна вести себя так же, как у остальных полей
-    // настроек: гаснет только когда нажали "Сохранить" (см. общий
-    // сброс .settings-dirty в конце saveSettings()), а НЕ сама по
-    // себе через какой-то таймер — иначе получается заметное
-    // расхождение в поведении между этой строкой и всеми остальными.
-    if(row) row.classList.add('settings-dirty');
   });
 }
 
@@ -765,6 +756,7 @@ function tick(){
 window.addEventListener('pywebviewready',()=>{
   tick(); setInterval(tick,1500);
   loadCustomCategories();
+  loadSoundVolumes();
   setTimeout(()=>checkUpdate(true), 3500);
 });
 
@@ -778,6 +770,104 @@ function loadCustomCategories(){
       CAT_COLORS[key] = c.color;
     });
   }).catch(()=>{});
+}
+
+// ── Микшер громкости ────────────────────────────────────────────────
+let _volumes = { chat: 80, heart: 80 };
+
+function toggleVolumeMixer(){
+  const popup = document.getElementById('volume-mixer-popup');
+  if(!popup) return;
+  const isHidden = popup.style.display === 'none' || !popup.style.display;
+  if(isHidden){
+    loadSoundVolumes();
+    popup.style.display = 'block';
+  } else {
+    popup.style.display = 'none';
+  }
+}
+
+// Клик вне микшера закрывает его
+document.addEventListener('click', (e)=>{
+  const popup = document.getElementById('volume-mixer-popup');
+  const btn = document.getElementById('btn-volume');
+  if(!popup || popup.style.display === 'none') return;
+  if(!popup.contains(e.target) && (!btn || !btn.contains(e.target)) && !e.target.closest('[onclick*="toggleVolumeMixer"]')){
+    popup.style.display = 'none';
+  }
+});
+
+function loadSoundVolumes(){
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.get_sound_volumes){
+    window.pywebview.api.get_sound_volumes().then(v=>{
+      if(!v) return;
+      _volumes.chat = (v.chat !== undefined) ? v.chat : 80;
+      _volumes.heart = (v.heart !== undefined) ? v.heart : 80;
+      updateMixerUI();
+    }).catch(()=>{});
+  }
+}
+
+function updateMixerUI(){
+  const sHeart = document.getElementById('slider-heart');
+  const sChat = document.getElementById('slider-chat');
+  const vHeart = document.getElementById('mixer-val-heart');
+  const vChat = document.getElementById('mixer-val-chat');
+  const btnVol = document.getElementById('btn-volume');
+
+  if(sHeart) sHeart.value = _volumes.heart;
+  if(sChat) sChat.value = _volumes.chat;
+
+  if(vHeart){
+    vHeart.textContent = _volumes.heart > 0 ? (_volumes.heart + '%') : 'Выкл';
+    vHeart.classList.toggle('is-muted', _volumes.heart === 0);
+  }
+  if(vChat){
+    vChat.textContent = _volumes.chat > 0 ? (_volumes.chat + '%') : 'Выкл';
+    vChat.classList.toggle('is-muted', _volumes.chat === 0);
+  }
+  if(btnVol){
+    const allMuted = (_volumes.heart === 0 && _volumes.chat === 0);
+    btnVol.textContent = allMuted ? '🔇' : '🔊';
+    btnVol.title = allMuted ? 'Звуки выключены (микшер)' : `Громкость: Сердечко ${_volumes.heart}%, Чат ${_volumes.chat}%`;
+  }
+}
+
+let _volumeSaveTimer = null;
+function onVolumeSliderInput(kind, val){
+  const num = parseInt(val, 10) || 0;
+  _volumes[kind] = num;
+  const label = document.getElementById(kind === 'heart' ? 'mixer-val-heart' : 'mixer-val-chat');
+  if(label){
+    label.textContent = num > 0 ? (num + '%') : 'Выкл';
+    label.classList.toggle('is-muted', num === 0);
+  }
+  const btnVol = document.getElementById('btn-volume');
+  if(btnVol){
+    const allMuted = (_volumes.heart === 0 && _volumes.chat === 0);
+    btnVol.textContent = allMuted ? '🔇' : '🔊';
+  }
+  clearTimeout(_volumeSaveTimer);
+  _volumeSaveTimer = setTimeout(() => {
+    if(window.pywebview && window.pywebview.api && window.pywebview.api.set_sound_volume){
+      window.pywebview.api.set_sound_volume(kind, num).catch(()=>{});
+    }
+  }, 120);
+}
+
+function onVolumeSliderChange(kind, val){
+  const num = parseInt(val, 10) || 0;
+  _volumes[kind] = num;
+  updateMixerUI();
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.set_sound_volume){
+    window.pywebview.api.set_sound_volume(kind, num).catch(e=>console.error('set_sound_volume error:', e));
+  }
+}
+
+function testSound(kind){
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.test_sound){
+    window.pywebview.api.test_sound(kind, _volumes[kind]).catch(e=>console.error('test_sound error:', e));
+  }
 }
 
 function openChat(){

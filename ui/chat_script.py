@@ -184,101 +184,17 @@ function isOnlyEmojis(str) {
     return count > 0 && count <= 8;
 }
 
-const EMOJI_CATEGORIES = {
-    faces: [
-        "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇",
-        "🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚",
-        "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
-        "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
-        "😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🤧",
-        "🥵","🥶","🥴","😵","🤯","🤠","🥳","😎","🤓","🧐",
-        "😕","😟","🙁","😮","😯","😲","😳","🥺","😦","😧",
-        "😨","😰","😥","😢","😭","😱","😖","😣","😞","😓",
-        "😩","😫","🥱","😤","😡","😠","🤬","😈","👿","💀",
-        "☠️","💩","🤡","👻","👽","🤖"
-    ],
-    love: [
-        "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
-        "❣️","💕","💞","💓","💗","💖","💘","💝","💟","💌",
-        "💋","💏","💑","🫂","💍","💐","🌹","🥀","🌺","🌸",
-        "🌷","🌻","🌼","💮","🎀","🎁","✨","🪄","🎆","🎇"
-    ],
-    cute: [
-        "🐱","😸","😹","😻","😼","😽","🙀","😿","😾","🐶",
-        "🐕","🦮","🐩","🐺","🦊","🦁","🐯","🐅","🐆","🐴",
-        "🦄","🦓","🦌","🐮","🐂","🐷","🐖","🐗","🐭","🐹",
-        "🐰","🐇","🐻","🧸","🐼","🐥","🐣","🦆","🦉","🐬",
-        "🐳","🐋","🐟","🐠","🐡","🦋","🐝","🐞","🐢","🐙"
-    ],
-    gestures: [
-        "👍","👎","👏","🙌","👐","🤲","🤝","🙏","✍️","💅",
-        "🤳","💪","🦾","🦵","🦶","👂","🦻","👃","🧠","👁️",
-        "👀","👅","👄","☝️","👆","👇","👈","👉","✌️","🤞",
-        "🤟","🤘","🤙","👋","🖐️","✋","🖖","👊","🤛","🤜",
-        "✊","🖕"
-    ],
-    vibes: [
-        "🔥","✨","⭐","🌟","💫","⚡","💥","💯","🎉","🎊",
-        "🎈","🎁","🏆","🥇","🎮","🕹️","🎲","🎵","🎶","🎧",
-        "☕","🍵","🥤","🍺","🍻","🥂","🍷","🍕","🍔","🍟",
-        "🍣","🍱","🍜","🍰","🧁","🍦","🍫","🍿","🍩","🍓"
-    ],
-    kaomoji: [
-        "(づ｡◕‿‿◕｡)づ",
-        "(っ˘з(˘⌣˘ )",
-        "(｡♥‿♥｡)",
-        "(=^･ω･^=)",
-        "ʕ•ᴥ•ʔ",
-        "(つ✧ω✧)つ",
-        "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
-        "(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)",
-        "(*＾3＾)/～♡",
-        "(っ- ‸ - ς)",
-        "(•́へ•́╬)",
-        "╰(▔∀▔)╯",
-        "( ๑ ❛ ڡ ❛ ๑ )",
-        "٩(◕‿◕｡)۶",
-        "(¬_¬ )",
-        "¯\\_(ツ)_/¯",
-        "(눈_눈)",
-        "(╥﹏╥)",
-        "(っ.❛ ᴗ ❛.)っ",
-        "(♡˙︶˙♡)",
-        "(o˘◡˘o)",
-        "(*♡∀♡)",
-        "(*/_＼)",
-        "(⌒‿⌒)"
-    ]
-};
+// Классический набор популярных эмодзи: смайлы, сердца, жесты, огоньки, еда
+const POPULAR_EMOJIS = [
+    "😀","😂","🤣","😊","😍","🥰","😘","😉","😎","🤩",
+    "🥳","😇","🙃","😅","🤔","🙄","😏","😴","😭","😢",
+    "😡","🤯","😱","🥺","😤","🤗","🤤","🙈","💀","👀",
+    "❤️","🧡","💛","💚","💙","💜","🖤","💔","💕","💖",
+    "👍","👎","👏","🙏","✌️","🤝","💪","👊","🤙","👌",
+    "🔥","✨","🎉","🎁","⭐","💯","☕","🍕","🍺","🌹",
+];
 
-let _currentEmojiTab = "faces";
-let _emojiPickerInitialized = false;
-
-function switchEmojiTab(tabName) {
-    _currentEmojiTab = tabName;
-    document.querySelectorAll(".emoji-tab").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.tab === tabName);
-    });
-    renderEmojiGrid();
-}
-
-function renderEmojiGrid() {
-    const grid = document.getElementById("emoji-grid");
-    if (!grid) return;
-    grid.innerHTML = "";
-    const isKaomoji = _currentEmojiTab === "kaomoji";
-    grid.classList.toggle("kaomoji-layout", isKaomoji);
-    const list = EMOJI_CATEGORIES[_currentEmojiTab] || EMOJI_CATEGORIES.faces;
-    for (const item of list) {
-        const el = document.createElement("span");
-        el.className = isKaomoji ? "kaomoji-item" : "emoji-item";
-        el.textContent = item;
-        el.onclick = () => insertEmoji(item);
-        grid.appendChild(el);
-    }
-}
-
-let _emojiPickerInitialized = false;
+let _emojiPickerFilled = false;
 
 function escapeHtml(str) {
     if (!str) return "";
@@ -299,9 +215,19 @@ function toggleEmojiPicker() {
         return;
     }
 
-    if (!_emojiPickerInitialized) {
-        renderEmojiGrid();
-        _emojiPickerInitialized = true;
+    if (!_emojiPickerFilled) {
+        const grid = document.getElementById("emoji-grid");
+        if (grid) {
+            grid.innerHTML = "";
+            for (const emoji of POPULAR_EMOJIS) {
+                const el = document.createElement("span");
+                el.className = "emoji-item";
+                el.textContent = emoji;
+                el.onclick = () => insertEmoji(emoji);
+                grid.appendChild(el);
+            }
+            _emojiPickerFilled = true;
+        }
     }
     panel.style.display = "block";
 }
@@ -311,10 +237,8 @@ function insertEmoji(emoji) {
     if (input) {
         const start = input.selectionStart ?? input.value.length;
         const end   = input.selectionEnd   ?? input.value.length;
-        const prefix = (start > 0 && input.value[start - 1] !== ' ' && emoji.length > 2) ? ' ' : '';
-        const suffix = (emoji.length > 2) ? ' ' : '';
-        input.value = input.value.slice(0, start) + prefix + emoji + suffix + input.value.slice(end);
-        const caret = start + prefix.length + emoji.length + suffix.length;
+        input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+        const caret = start + emoji.length;
         input.focus();
         input.setSelectionRange(caret, caret);
     }
@@ -365,19 +289,14 @@ window.addEventListener("pywebviewready", () => {
         });
         input.addEventListener("input", autoResizeMessageBox);
 
-        // Фикс зависания при вставке изображений из буфера обмена на
-        // Windows 11: WebView2 пытается обработать бинарный контент и
-        // зависает на 2-3 секунды. Проверяем каждый item в буфере —
-        // если нет ни одного text/plain, сразу отменяем событие и тихо
-        // игнорируем вставку. Текст проходит без изменений.
+        // Предотвращение зависания на Windows 11 при вставке картинок/гифок из буфера:
+        // если в буфере нет чистого текста (text/plain), сразу отменяем вставку,
+        // чтобы WebView2 не пытался парсить бинарные данные в textarea.
         input.addEventListener("paste", (e) => {
-            const items = e.clipboardData && e.clipboardData.items;
-            if (!items) return;
-            let hasText = false;
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type === "text/plain") { hasText = true; break; }
-            }
-            if (!hasText) {
+            const cd = e.clipboardData;
+            if (!cd) return;
+            const text = cd.getData("text/plain");
+            if (!text) {
                 e.preventDefault();
                 e.stopPropagation();
             }

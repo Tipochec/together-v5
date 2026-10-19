@@ -38,13 +38,16 @@ def is_test_instance():
     if "--test" in sys.argv or "--dev" in sys.argv or "--multi" in sys.argv:
         return True
     # Если файл называется Together_Test.exe или содержит test в имени файла
-    exe_name = os.path.basename(sys.executable or "").lower()
+    exe_path = (sys.executable or sys.argv[0] or "").lower().replace("/", "\\")
+    exe_name = os.path.basename(exe_path)
     if "test" in exe_name:
         return True
-    # Маркерный файл .test рядом с exe
+    # Маркерный файл .test рядом с exe или запуск из папки разработки/тестов
     try:
         exe_dir = os.path.dirname(os.path.abspath(sys.executable or sys.argv[0]))
         if os.path.exists(os.path.join(exe_dir, ".test")) or os.path.exists(os.path.join(exe_dir, "test_mode.txt")):
+            return True
+        if "\\together-v5\\dist" in exe_dir.lower() or "\\git\\together" in exe_dir.lower():
             return True
     except Exception:
         pass

@@ -30,3 +30,9 @@ venv/
 ai_debug.log
 network_debug.log
 console_out.txt
+out.txt
+
+# Generated audio & test batches
+*.wav
+Запустить_Тест.bat
+installer_output/

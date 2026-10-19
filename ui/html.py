@@ -19,6 +19,7 @@ HTML = r"""
 <div class="titlebar pywebview-drag-region">
   <div class="titlebar-title"><span class="heart">♥</span> Together{test_tag}</div>
     <div class="titlebar-btns">
+        <button class="titlebar-btn" id="btn-volume" onclick="toggleVolumeMixer()" title="Микшер громкости">🔊</button>
         <button class="titlebar-btn" id="btn-chat" onclick="openChat()" title="Чат" style="position:relative">
           💬
           <span id="chat-badge" style="display:none;position:absolute;top:2px;right:2px;
@@ -28,6 +29,35 @@ HTML = r"""
         <button class="titlebar-close" onclick="pywebview.api.minimize_window()" title="Свернуть">—</button>
         <button class="titlebar-close" onclick="pywebview.api.hide_window()" title="В трей">✕</button>
     </div>
+</div>
+
+<div id="volume-mixer-popup" class="volume-mixer-popup" style="display:none">
+  <div class="mixer-header">
+    <span class="mixer-title">🔊 Микшер громкости</span>
+    <button class="mixer-close" onclick="toggleVolumeMixer()">✕</button>
+  </div>
+  
+  <div class="mixer-item">
+    <div class="mixer-item-header">
+      <span>❤️ Сердечко (ОХАЁ)</span>
+      <span class="mixer-val" id="mixer-val-heart">80%</span>
+    </div>
+    <div class="mixer-controls">
+      <input type="range" min="0" max="100" value="80" class="volume-slider" id="slider-heart" oninput="onVolumeSliderInput('heart', this.value)" onchange="onVolumeSliderChange('heart', this.value)"/>
+      <button class="mixer-test-btn" onclick="testSound('heart')" title="Проверить громкость">▶</button>
+    </div>
+  </div>
+
+  <div class="mixer-item" style="margin-top:12px">
+    <div class="mixer-item-header">
+      <span>💬 Сообщения чата</span>
+      <span class="mixer-val" id="mixer-val-chat">80%</span>
+    </div>
+    <div class="mixer-controls">
+      <input type="range" min="0" max="100" value="80" class="volume-slider" id="slider-chat" oninput="onVolumeSliderInput('chat', this.value)" onchange="onVolumeSliderChange('chat', this.value)"/>
+      <button class="mixer-test-btn" onclick="testSound('chat')" title="Проверить громкость">▶</button>
+    </div>
+  </div>
 </div>
 <div class="content">
   <div class="nav">
@@ -218,9 +248,16 @@ HTML = r"""
       </span>
       <button class="btn" id="btn-autostart" onclick="toggleAutostart()">проверка...</button>
     </div>
-    <div style="margin-top:16px;display:flex;gap:8px">
-      <button class="btn btn-primary" id="btn-save" onclick="saveSettings()">Сохранить</button>
+    <div class="settings-row">
+      <span class="settings-label">
+        🔊 Громкость звуков
+        <span class="help-icon" tabindex="0">?
+          <span class="help-tooltip">Громкость сердечка и сообщений чата (0% — без звука).</span>
+        </span>
+      </span>
+      <button class="btn" onclick="toggleVolumeMixer()">Настроить громкость 🔊</button>
     </div>
+
     <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>

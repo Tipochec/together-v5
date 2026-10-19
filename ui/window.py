@@ -102,6 +102,44 @@ class WindowAPI:
             print("save_settings error:", e)
         return True
 
+    def get_sound_volumes(self):
+        from core.notifications import get_chat_volume, get_heart_volume
+        return {
+            "chat": get_chat_volume(),
+            "heart": get_heart_volume(),
+        }
+
+    def set_sound_volume(self, kind, volume):
+        from core.notifications import set_chat_volume, set_heart_volume
+        from core.tracker import load_settings, _settings_path
+        try:
+            vol = max(0, min(100, int(volume)))
+            current = load_settings()
+            if kind == "heart":
+                set_heart_volume(vol)
+                current["volume_heart"] = vol
+            else:
+                set_chat_volume(vol)
+                current["volume_chat"] = vol
+            with open(_settings_path(), "w", encoding="utf-8") as f:
+                json.dump(current, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print("set_sound_volume error:", e)
+            return False
+
+    def test_sound(self, kind, volume=None):
+        from core.notifications import play_chat_sound, play_heart_sound
+        try:
+            vol = int(volume) if volume is not None else None
+        except (ValueError, TypeError):
+            vol = None
+        if kind == "heart":
+            play_heart_sound(vol)
+        else:
+            play_chat_sound(vol)
+        return True
+
     def copy_to_clipboard(self, text):
         return True
 
@@ -456,6 +494,17 @@ def run_webview_loop(tracker, network, stats=None):
 
     from core.paths import is_test_instance
     win_title = "Together (Тест)" if is_test_instance() else "Together"
+
+    from core.tracker import load_settings
+    from core.notifications import set_chat_volume, set_heart_volume
+    try:
+        s = load_settings()
+        if "volume_chat" in s:
+            set_chat_volume(s["volume_chat"])
+        if "volume_heart" in s:
+            set_heart_volume(s["volume_heart"])
+    except Exception:
+        pass
 
     api = WindowAPI()
     _window = webview.create_window(
