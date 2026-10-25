@@ -174,68 +174,23 @@ body{
     left:10px;
     right:10px;
     bottom:65px;
-    height:280px;
+    max-height:280px;
     background:#1a1820;
     border:0.5px solid rgba(255,255,255,0.12);
     border-radius:12px;
-    padding:0;
-    box-shadow:0 8px 26px rgba(0,0,0,0.55);
-    display:flex;
-    flex-direction:column;
-    z-index:20;
-    overflow:hidden;
-}
-
-.emoji-tabs{
-    display:flex;
-    gap:4px;
-    padding:8px 8px 6px 8px;
-    border-bottom:0.5px solid rgba(255,255,255,0.08);
-    background:rgba(0,0,0,0.25);
-    overflow-x:auto;
-    scrollbar-width:none;
-    flex-shrink:0;
-}
-.emoji-tabs::-webkit-scrollbar{
-    display:none;
-}
-
-.emoji-tab{
-    background:rgba(255,255,255,0.05);
-    border:0.5px solid rgba(255,255,255,0.08);
-    border-radius:8px;
-    padding:4px 8px;
-    color:rgba(255,255,255,0.65);
-    font-size:11px;
-    cursor:pointer;
-    white-space:nowrap;
-    transition:all 0.15s ease;
-    flex-shrink:0;
-}
-.emoji-tab:hover{
-    background:rgba(255,255,255,0.1);
-    color:#fff;
-}
-.emoji-tab.active{
-    background:#534ab7;
-    border-color:#6c5ce7;
-    color:#fff;
-    font-weight:600;
-}
-
-.emoji-body{
-    flex:1;
-    overflow-y:auto;
     padding:8px 6px;
+    box-shadow:0 8px 26px rgba(0,0,0,0.55);
+    overflow-y:auto;
+    z-index:20;
 }
-.emoji-body::-webkit-scrollbar{
+.emoji-picker::-webkit-scrollbar{
     width:5px;
 }
-.emoji-body::-webkit-scrollbar-thumb{
+.emoji-picker::-webkit-scrollbar-thumb{
     background:rgba(255,255,255,0.15);
     border-radius:3px;
 }
-.emoji-body::-webkit-scrollbar-thumb:hover{
+.emoji-picker::-webkit-scrollbar-thumb:hover{
     background:rgba(255,255,255,0.25);
 }
 
@@ -262,11 +217,22 @@ body{
     transform:scale(1.18);
 }
 
+.kaomoji-header{
+    font-size:11px;
+    font-weight:600;
+    color:rgba(255,255,255,0.4);
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    padding:10px 4px 6px 4px;
+    border-top:0.5px solid rgba(255,255,255,0.06);
+    margin-top:8px;
+}
+
 .kaomoji-grid{
     display:flex;
     flex-wrap:wrap;
     gap:6px;
-    padding:2px;
+    padding:2px 0 4px 0;
 }
 
 .kaomoji-item{

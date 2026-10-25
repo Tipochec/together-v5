@@ -37,18 +37,9 @@ HTML = r"""
 </div>
 
 <div id="emoji-picker" class="emoji-picker" style="display:none">
-  <div class="emoji-tabs">
-    <button class="emoji-tab active" data-cat="faces" onclick="switchEmojiTab('faces', this)">🙂 Смайлы</button>
-    <button class="emoji-tab" data-cat="hearts" onclick="switchEmojiTab('hearts', this)">❤️ Сердца</button>
-    <button class="emoji-tab" data-cat="animals" onclick="switchEmojiTab('animals', this)">🐱 Животные</button>
-    <button class="emoji-tab" data-cat="food" onclick="switchEmojiTab('food', this)">☕ Еда</button>
-    <button class="emoji-tab" data-cat="gestures" onclick="switchEmojiTab('gestures', this)">✨ Жесты</button>
-    <button class="emoji-tab" data-cat="kaomoji" onclick="switchEmojiTab('kaomoji', this)">(◕‿◕) Каомодзи</button>
-  </div>
-  <div class="emoji-body">
-    <div class="emoji-grid" id="emoji-grid"></div>
-    <div class="kaomoji-grid" id="kaomoji-grid" style="display:none"></div>
-  </div>
+  <div class="emoji-grid" id="emoji-grid"></div>
+  <div class="kaomoji-header">Каомодзи</div>
+  <div class="kaomoji-grid" id="kaomoji-grid"></div>
 </div>
 
 <div id="reply-preview" class="reply-preview" style="display:none">

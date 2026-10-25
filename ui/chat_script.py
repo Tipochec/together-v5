@@ -205,63 +205,59 @@ function isOnlyEmojis(str) {
     return count > 0 && count <= 8;
 }
 
-// Расширенная база эмодзи по категориям + милые каомодзи
-const EMOJI_CATEGORIES = {
-    faces: [
-        "😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃",
-        "😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙",
-        "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
-        "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
-        "😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮",
-        "🤧","🥵","🥶","🥴","😵","🤯","🤠","🥳","🥸","😎",
-        "🤓","🧐","😕","😟","🙁","😮","😯","😲","😳","🥺",
-        "😦","😧","😰","😥","😢","😭","😱","😖","😣","😞",
-        "😓","😩","😫","🥱","😤","😡","😠","🤬","😈","👿",
-        "💀","☠️","💩","🤡","👻","👽","🤖","👾","🙈","👀"
-    ],
-    hearts: [
-        "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
-        "❣️","💕","💞","💓","💗","💖","💘","💝","💟","💌",
-        "💋","🫂","💍","💎","💐","🌸","💮","🏵️","🌹","🥀",
-        "🌺","🌻","🌼","🌷","🪷","✨","🎀","🧸","🕊️","🕯️"
-    ],
-    animals: [
-        "🐱","😸","😹","😻","😼","😽","🙀","😿","😾","🐈",
-        "🐶","🐕","🦮","🐩","🐺","🦊","🦝","🦁","🐯","🐅",
-        "🐆","🐴","🐎","🦄","🦓","🦌","🐮","🐂","🐷","🐖",
-        "🐽","🐏","🐑","🐐","🐪","🐫","🦒","🐘","🐭","🐁",
-        "🐹","🐰","🐇","🐿️","🦔","🦇","🐻","🐨","🐼","🦥",
-        "🐾","🐦","🐧","🦆","🦉","🐸","🐢","🦎","🐙","🐬"
-    ],
-    food: [
-        "☕","🍵","🧃","🥤","🧋","🍶","🍺","🍻","🥂","🍷",
-        "🥃","🍸","🍹","🍾","🍕","🍔","🍟","🌭","🍿","🥓",
-        "🍳","🧇","🥞","🍞","🥐","🥖","🥨","🧀","🥗","🥪",
-        "🌮","🌯","🍜","🍝","🍣","🍱","🥟","🍤","🍙","🍚",
-        "🍦","🍨","🍩","🍪","🎂","🍰","🧁","🍫","🍬","🍭",
-        "🍎","🍓","🍒","🍑","🍇","🍉","🍌","🍋","🍊","🥑"
-    ],
-    gestures: [
-        "👍","👎","👊","✊","🤛","🤜","👏","🙌","👐","🤲",
-        "🤝","🙏","✍️","💅","🤳","💪","✌️","🤞","🤟","🤘",
-        "🤙","👈","👉","👆","👇","☝️","👋","🤚","🖐️","✋",
-        "🖖","💫","⭐","🌟","⚡","💥","🔥","💯","💢","💨",
-        "💦","💤","🎵","🎶","🎮","🎯","🎲","🎁","🎈","🎉"
-    ],
-    kaomoji: [
-        "(◕‿◕)", "(｡♥‿♥｡)", "(づ｡◕‿‿◕｡)づ", "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
-        "(◡‿◡✿)", "(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)", "(◕‿◕)♡", "(*^▽^*)",
-        "(≧◡≦)", "(o˘◡˘o)", "(っ˘з(˘⌣˘ )", "(♡-_-♡)",
-        "(੭ु´･ω･`)੭ु⁾⁾", "(๑•̀ㅂ•́)و✧", "(=^･ω･^=)", "(ฅ^•ﻌ•^ฅ)",
-        "(ง'̀-'́)ง", "(╯°□°)╯︵ ┻━┻", "┬─┬ノ( º _ ºノ)", "¯\\_(ツ)_/¯",
-        "(｡•́︿•̀｡)", "(╥﹏╥)", "( ˘ ³˘)♥", "(o´∀`o)",
-        "(★ω★)", "＼(＾▽＾)／", "(¬‿¬)", "(¬_¬)",
-        "(~˘▾˘)~", "(ಥ﹏ಥ)", "٩(◕‿◕｡)۶", "╰(▔∀▔)╯"
-    ]
-};
+// Все популярные эмодзи подряд без категорий
+const ALL_EMOJIS = [
+    // Смайлы и лица
+    "😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃",
+    "😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙",
+    "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
+    "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
+    "😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮",
+    "🤧","🥵","🥶","🥴","😵","🤯","🤠","🥳","🥸","😎",
+    "🤓","🧐","😕","😟","🙁","😮","😯","😲","😳","🥺",
+    "😦","😧","😰","😥","😢","😭","😱","😖","😣","😞",
+    "😓","😩","😫","🥱","😤","😡","😠","🤬","😈","👿",
+    "💀","☠️","💩","🤡","👻","👽","🤖","👾","🙈","👀",
+    // Сердца
+    "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
+    "❣️","💕","💞","💓","💗","💖","💘","💝","💟","💌",
+    "💋","🫂","💍","💎","💐","🌸","💮","🏵️","🌹","🥀",
+    "🌺","🌻","🌼","🌷","🪷","✨","🎀","🧸","🕊️","🕯️",
+    // Животные
+    "🐱","😸","😹","😻","😼","😽","🙀","😿","😾","🐈",
+    "🐶","🐕","🦮","🐩","🐺","🦊","🦝","🦁","🐯","🐅",
+    "🐆","🐴","🐎","🦄","🦓","🦌","🐮","🐂","🐷","🐖",
+    "🐽","🐏","🐑","🐐","🐪","🐫","🦒","🐘","🐭","🐁",
+    "🐹","🐰","🐇","🐿️","🦔","🦇","🐻","🐨","🐼","🦥",
+    "🐾","🐦","🐧","🦆","🦉","🐸","🐢","🦎","🐙","🐬",
+    // Еда
+    "☕","🍵","🧃","🥤","🧋","🍶","🍺","🍻","🥂","🍷",
+    "🥃","🍸","🍹","🍾","🍕","🍔","🍟","🌭","🍿","🥓",
+    "🍳","🧇","🥞","🍞","🥐","🥖","🥨","🧀","🥗","🥪",
+    "🌮","🌯","🍜","🍝","🍣","🍱","🥟","🍤","🍙","🍚",
+    "🍦","🍨","🍩","🍪","🎂","🍰","🧁","🍫","🍬","🍭",
+    "🍎","🍓","🍒","🍑","🍇","🍉","🍌","🍋","🍊","🥑",
+    // Жесты и разное
+    "👍","👎","👊","✊","🤛","🤜","👏","🙌","👐","🤲",
+    "🤝","🙏","✍️","💅","🤳","💪","✌️","🤞","🤟","🤘",
+    "🤙","👈","👉","👆","👇","☝️","👋","🤚","🖐️","✋",
+    "🖖","💫","⭐","🌟","⚡","💥","🔥","💯","💢","💨",
+    "💦","💤","🎵","🎶","🎮","🎯","🎲","🎁","🎈","🎉"
+];
 
-let _currentCategory = "faces";
-let _emojiPickerInitialized = false;
+// Каомодзи (текстовые смайлы)
+const ALL_KAOMOJIS = [
+    "(◕‿◕)", "(｡♥‿♥｡)", "(づ｡◕‿‿◕｡)づ", "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
+    "(◡‿◡✿)", "(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)", "(◕‿◕)♡", "(*^▽^*)",
+    "(≧◡≦)", "(o˘◡˘o)", "(っ˘з(˘⌣˘ )", "(♡-_-♡)",
+    "(੭ु´･ω･`)੭ु⁾⁾", "(๑•̀ㅂ•́)و✧", "(=^･ω･^=)", "(ฅ^•ﻌ•^ฅ)",
+    "(ง'̀-'́)ง", "(╯°□°)╯︵ ┻━┻", "┬─┬ノ( º _ ºノ)", "¯\\_(ツ)_/¯",
+    "(｡•́︿•̀｡)", "(╥﹏╥)", "( ˘ ³˘)♥", "(o´∀`o)",
+    "(★ω★)", "＼(＾▽＾)／", "(¬‿¬)", "(¬_¬)",
+    "(~˘▾˘)~", "(ಥ﹏ಥ)", "٩(◕‿◕｡)۶", "╰(▔∀▔)╯"
+];
+
+let _emojiPickerFilled = false;
 
 function escapeHtml(str) {
     if (!str) return "";
@@ -273,73 +269,41 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
-function switchEmojiTab(cat, btn) {
-    _currentCategory = cat;
-    document.querySelectorAll(".emoji-tab").forEach(t => t.classList.remove("active"));
-    if (btn) {
-        btn.classList.add("active");
-    } else {
-        const found = document.querySelector(`.emoji-tab[data-cat="${cat}"]`);
-        if (found) found.classList.add("active");
-    }
-
-    const grid = document.getElementById("emoji-grid");
-    const kGrid = document.getElementById("kaomoji-grid");
-    if (!grid || !kGrid) return;
-
-    if (cat === "kaomoji") {
-        grid.style.display = "none";
-        kGrid.style.display = "flex";
-        renderKaomojis();
-    } else {
-        kGrid.style.display = "none";
-        grid.style.display = "grid";
-        renderEmojiCategory(cat);
-    }
-}
-
-function renderEmojiCategory(cat) {
-    const grid = document.getElementById("emoji-grid");
-    if (!grid) return;
-    grid.innerHTML = "";
-    const list = EMOJI_CATEGORIES[cat] || [];
-    for (const emoji of list) {
-        const el = document.createElement("span");
-        el.className = "emoji-item";
-        el.textContent = emoji;
-        el.onclick = () => insertEmoji(emoji);
-        grid.appendChild(el);
-    }
-}
-
-function renderKaomojis() {
-    const kGrid = document.getElementById("kaomoji-grid");
-    if (!kGrid) return;
-    kGrid.innerHTML = "";
-    const list = EMOJI_CATEGORIES.kaomoji || [];
-    for (const km of list) {
-        const el = document.createElement("span");
-        el.className = "kaomoji-item";
-        el.textContent = km;
-        el.onclick = () => insertEmoji(km);
-        kGrid.appendChild(el);
-    }
-}
-
 function toggleEmojiPicker() {
     const panel = document.getElementById("emoji-picker");
     if (!panel) return;
 
-    if (panel.style.display === "flex") {
+    if (panel.style.display === "block") {
         panel.style.display = "none";
         return;
     }
 
-    if (!_emojiPickerInitialized) {
-        switchEmojiTab("faces", document.querySelector('.emoji-tab[data-cat="faces"]'));
-        _emojiPickerInitialized = true;
+    if (!_emojiPickerFilled) {
+        const grid = document.getElementById("emoji-grid");
+        if (grid) {
+            grid.innerHTML = "";
+            for (const emoji of ALL_EMOJIS) {
+                const el = document.createElement("span");
+                el.className = "emoji-item";
+                el.textContent = emoji;
+                el.onclick = () => insertEmoji(emoji);
+                grid.appendChild(el);
+            }
+        }
+        const kGrid = document.getElementById("kaomoji-grid");
+        if (kGrid) {
+            kGrid.innerHTML = "";
+            for (const km of ALL_KAOMOJIS) {
+                const el = document.createElement("span");
+                el.className = "kaomoji-item";
+                el.textContent = km;
+                el.onclick = () => insertEmoji(km);
+                kGrid.appendChild(el);
+            }
+        }
+        _emojiPickerFilled = true;
     }
-    panel.style.display = "flex";
+    panel.style.display = "block";
 }
 
 function insertEmoji(emoji) {
@@ -368,7 +332,7 @@ function insertEmoji(emoji) {
 document.addEventListener("click", (ev) => {
     const panel = document.getElementById("emoji-picker");
     const btn   = document.getElementById("emoji-toggle-btn");
-    if (!panel || panel.style.display !== "flex") return;
+    if (!panel || panel.style.display !== "block") return;
     if (!panel.contains(ev.target) && ev.target !== btn) {
         panel.style.display = "none";
     }
@@ -402,18 +366,14 @@ window.addEventListener("pywebviewready", () => {
                 e.preventDefault();
                 sendMessage();
             }
-            // Shift+Enter — намеренно ничего не делаем и НЕ вызываем
-            // preventDefault(): браузер сам вставит перенос строки в
-            // textarea, как в обычном мессенджере.
+            // Shift+Enter — перенос строки в textarea
         });
         input.addEventListener("input", () => {
             autoResizeMessageBox();
             updateCharCounter();
         });
 
-        // Предотвращение зависания на Windows 11 при вставке картинок/гифок из буфера:
-        // если в буфере нет чистого текста (text/plain), сразу отменяем вставку,
-        // чтобы WebView2 не пытался парсить бинарные данные в textarea.
+        // Предотвращение зависания на Windows 11 при вставке картинок/гифок из буфера
         input.addEventListener("paste", (e) => {
             const cd = e.clipboardData;
             if (!cd) return;
