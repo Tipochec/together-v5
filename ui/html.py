@@ -246,7 +246,11 @@ HTML = r"""
           <span class="help-tooltip">Запускает приложение в фоне при старте системы.</span>
         </span>
       </span>
-      <button class="btn" id="btn-autostart" onclick="toggleAutostart()">проверка...</button>
+      <label class="toggle">
+        <input type="checkbox" id="tog-autostart" onchange="toggleAutostart()"/>
+        <span class="toggle-slider"></span>
+      </label>
+      <button id="btn-autostart" style="display:none"></button>
     </div>
     <div class="settings-row">
       <span class="settings-label">

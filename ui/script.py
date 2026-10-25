@@ -418,7 +418,10 @@ function loadSettings(){
     document.getElementById('inp-name').value=s.name||'';
     document.getElementById('inp-gender').value=s.gender||'male';
     document.getElementById('inp-pairing-key').value=s.pairing_key||'';
-    document.getElementById('btn-autostart').textContent=s.autostart?'включён ✓':'выключен';
+    const autoTog = document.getElementById('tog-autostart');
+    if (autoTog) autoTog.checked = s.autostart || false;
+    const autoBtn = document.getElementById('btn-autostart');
+    if (autoBtn) autoBtn.textContent = s.autostart ? 'включён ✓' : 'выключен';
     document.getElementById('tog-private').checked=s.private_mode||false;
     renderAvatarPreview(s.avatar||'');
   });
@@ -553,7 +556,10 @@ function reconnectNetwork(){
 
 function toggleAutostart(){
   pywebview.api.toggle_autostart().then(on=>{
-    document.getElementById('btn-autostart').textContent=on?'включён ✓':'выключен';
+    const autoTog = document.getElementById('tog-autostart');
+    if (autoTog) autoTog.checked = on;
+    const autoBtn = document.getElementById('btn-autostart');
+    if (autoBtn) autoBtn.textContent = on ? 'включён ✓' : 'выключен';
   });
 }
 

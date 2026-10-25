@@ -37,7 +37,18 @@ HTML = r"""
 </div>
 
 <div id="emoji-picker" class="emoji-picker" style="display:none">
-  <div class="emoji-grid" id="emoji-grid"></div>
+  <div class="emoji-tabs">
+    <button class="emoji-tab active" data-cat="faces" onclick="switchEmojiTab('faces', this)">🙂 Смайлы</button>
+    <button class="emoji-tab" data-cat="hearts" onclick="switchEmojiTab('hearts', this)">❤️ Сердца</button>
+    <button class="emoji-tab" data-cat="animals" onclick="switchEmojiTab('animals', this)">🐱 Животные</button>
+    <button class="emoji-tab" data-cat="food" onclick="switchEmojiTab('food', this)">☕ Еда</button>
+    <button class="emoji-tab" data-cat="gestures" onclick="switchEmojiTab('gestures', this)">✨ Жесты</button>
+    <button class="emoji-tab" data-cat="kaomoji" onclick="switchEmojiTab('kaomoji', this)">(◕‿◕) Каомодзи</button>
+  </div>
+  <div class="emoji-body">
+    <div class="emoji-grid" id="emoji-grid"></div>
+    <div class="kaomoji-grid" id="kaomoji-grid" style="display:none"></div>
+  </div>
 </div>
 
 <div id="reply-preview" class="reply-preview" style="display:none">
@@ -50,10 +61,14 @@ HTML = r"""
 
 <div class="input">
 
-<textarea
-id="message"
-rows="1"
-placeholder="Напишите сообщение..."></textarea>
+<div class="input-wrapper">
+  <textarea
+    id="message"
+    rows="1"
+    maxlength="500"
+    placeholder="Напишите сообщение..."></textarea>
+  <div id="char-counter" class="char-counter" style="display:none">0/500</div>
+</div>
 
 <button
 class="send emoji-btn"

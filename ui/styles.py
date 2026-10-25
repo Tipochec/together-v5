@@ -151,14 +151,15 @@ CSS = r"""
     padding-right:26px;
   }
   select.si option{background:#1e1c26;color:#e8e6f0}
-  .toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+  .toggle{position:relative;width:42px;height:24px;flex-shrink:0;display:inline-block}
   .toggle input{opacity:0;width:0;height:0}
-  .toggle-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.1);
-    border-radius:20px;transition:.2s}
-  .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;
-    background:rgba(255,255,255,0.4);border-radius:50%;transition:.2s}
-  .toggle input:checked+.toggle-slider{background:rgba(83,74,183,0.6)}
-  .toggle input:checked+.toggle-slider:before{transform:translateX(16px);background:#a89ef0}
+  .toggle-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.12);
+    border-radius:24px;border:1px solid rgba(255,255,255,0.1);transition:all .25s cubic-bezier(0.16,1,0.3,1)}
+  .toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:2px;bottom:2px;
+    background:#ffffff;border-radius:50%;transition:all .25s cubic-bezier(0.16,1,0.3,1);
+    box-shadow:0 2px 5px rgba(0,0,0,0.4)}
+  .toggle input:checked+.toggle-slider{background:linear-gradient(135deg,#6c5ce7,#d4537e);border-color:rgba(255,255,255,0.25);box-shadow:0 0 10px rgba(108,92,231,0.4)}
+  .toggle input:checked+.toggle-slider:before{transform:translateX(18px)}
   .btn{padding:7px 14px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);
     background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.55);cursor:pointer;
     font-size:12px;transition:all .15s}
