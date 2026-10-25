@@ -179,112 +179,147 @@ HTML = r"""
 
 
   <!-- НАСТРОЙКИ -->
-  <div id="page-settings">
-    <div class="settings-row">
-      <span class="settings-label">
-        🖼️ Моя аватарка
-        <span class="help-icon help-icon-down" tabindex="0">?
-          <span class="help-tooltip">Квадратная фотка, которая видна партнёру и тебе на карточке. <b>JPG/PNG</b>, любой размер — само обрежется по центру в квадрат.</span>
-        </span>
-      </span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="avatar gender-male" id="settings-avatar-preview" style="width:40px;height:40px;margin-bottom:0">Я</div>
-        <button class="btn" onclick="pickAvatar()">Выбрать файл</button>
-        <button class="btn btn-danger" onclick="removeAvatar()" title="Убрать аватарку">✕</button>
+  <div id="page-settings" class="settings-page">
+
+    <!-- ПРОФИЛЬ -->
+    <div class="settings-section-title">
+      <span>👤 Профиль</span>
+    </div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Аватарка</div>
+          <div class="settings-row-desc">Отображается на карточке активности</div>
+        </div>
+        <div class="settings-row-ctrl avatar-ctrl">
+          <div class="avatar gender-male" id="settings-avatar-preview">Я</div>
+          <button class="btn-settings-action" onclick="pickAvatar()">Сменить</button>
+          <button class="btn-settings-icon btn-danger" onclick="removeAvatar()" title="Удалить аватарку">✕</button>
+        </div>
       </div>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        👤 Моё имя
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Твоё имя или никнейм, который увидит партнёр.</span>
-        </span>
-      </span>
-      <input class="si" id="inp-name" placeholder="Введи имя"/>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        ⚧ Мой пол
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Влияет на <b>цвет акцента твоей карточки</b> у тебя и у партнёра.</span>
-        </span>
-      </span>
-      <select class="si" id="inp-gender">
-        <option value="male">Мужской</option>
-        <option value="female">Женский</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        🔒 Ключ подключения
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Общий ключ комнаты для вас двоих. Введите <b>одинаковый ключ</b> себе и партнёру, либо сгенерируйте случайный.</span>
-        </span>
-      </span>
-      <div style="display:flex;gap:6px;width:60%">
-        <input class="si" id="inp-pairing-key" placeholder="общий ключ комнаты" type="text" style="flex:1"/>
-        <button class="btn" onclick="generatePairingKey()" title="Сгенерировать случайный надёжный ключ" style="padding:4px 8px;font-size:14px">🎲</button>
-        <button class="btn" onclick="copyPairingKey(this)" title="Скопировать ключ" style="padding:4px 8px;font-size:14px">📋</button>
+
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Имя</div>
+          <div class="settings-row-desc">Имя или никнейм, который видит партнёр</div>
+        </div>
+        <div class="settings-row-ctrl">
+          <input class="settings-input" id="inp-name" placeholder="Введи имя" maxlength="32"/>
+        </div>
       </div>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        🕵️ Приватный режим
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Скрывает названия открытых вкладок и сайтов — отображается только название браузера.</span>
-        </span>
-      </span>
-      <label class="toggle">
-        <input type="checkbox" id="tog-private"/>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        🚀 Автозапуск с Windows
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Запускает приложение в фоне при старте системы.</span>
-        </span>
-      </span>
-      <label class="toggle">
-        <input type="checkbox" id="tog-autostart" onchange="toggleAutostart()"/>
-        <span class="toggle-slider"></span>
-      </label>
-      <button id="btn-autostart" style="display:none"></button>
-    </div>
-    <div class="settings-row">
-      <span class="settings-label">
-        🔊 Громкость звуков
-        <span class="help-icon" tabindex="0">?
-          <span class="help-tooltip">Громкость сердечка и сообщений чата (0% — без звука).</span>
-        </span>
-      </span>
-      <button class="btn" onclick="toggleVolumeMixer()">Настроить громкость 🔊</button>
+
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Акцент карточки</div>
+          <div class="settings-row-desc">Цвет оформления (мужской — синий, женский — розовый)</div>
+        </div>
+        <div class="settings-row-ctrl">
+          <div class="segmented-control">
+            <button type="button" class="segmented-btn active" id="gender-male" onclick="setGender('male')">♂ Мужской</button>
+            <button type="button" class="segmented-btn" id="gender-female" onclick="setGender('female')">♀ Женский</button>
+          </div>
+          <input type="hidden" id="inp-gender" value="male"/>
+        </div>
+      </div>
     </div>
 
-    <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:600;font-size:13px">Together <span id="app-version-badge" style="color:#a89ef0;font-size:11px;font-weight:normal">v{version}</span></div>
-          <div id="update-status-text" style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">Проверить обновления</div>
+    <!-- СВЯЗЬ С ПАРТНЁРОМ -->
+    <div class="settings-section-title">
+      <span>🔗 Связь с партнёром</span>
+    </div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Ключ комнаты</div>
+          <div class="settings-row-desc">Общий секретный ключ для подключения друг к другу</div>
         </div>
-        <button class="btn" id="btn-check-update" onclick="checkUpdate()" style="padding:6px 12px;font-size:11px">Проверить</button>
+        <div class="settings-row-ctrl key-ctrl">
+          <input class="settings-input key-input" id="inp-pairing-key" placeholder="ключ комнаты" type="text" spellcheck="false"/>
+          <button class="btn-settings-icon" onclick="generatePairingKey()" title="Сгенерировать надёжный ключ">🎲</button>
+          <button class="btn-settings-icon" onclick="copyPairingKey(this)" title="Скопировать ключ">📋</button>
+        </div>
       </div>
-      <div id="update-action-box" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08)">
-        <div id="update-notes" style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:8px;max-height:80px;overflow-y:auto;white-space:pre-wrap"></div>
+    </div>
+
+    <!-- ПРИВАТНОСТЬ И СИСТЕМА -->
+    <div class="settings-section-title">
+      <span>⚙️ Приватность и система</span>
+    </div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Приватный режим</div>
+          <div class="settings-row-desc">Скрывать названия открытых сайтов и вкладок</div>
+        </div>
+        <div class="settings-row-ctrl">
+          <label class="toggle">
+            <input type="checkbox" id="tog-private"/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Автозапуск с Windows</div>
+          <div class="settings-row-desc">Запускать Together в фоне при старте системы</div>
+        </div>
+        <div class="settings-row-ctrl">
+          <label class="toggle">
+            <input type="checkbox" id="tog-autostart" onchange="toggleAutostart()"/>
+            <span class="toggle-slider"></span>
+          </label>
+          <button id="btn-autostart" style="display:none"></button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Звуковые уведомления</div>
+          <div class="settings-row-desc">Громкость сердечка (ОХАЁ) и сообщений чата</div>
+        </div>
+        <div class="settings-row-ctrl">
+          <button class="btn-settings-action" onclick="toggleVolumeMixer()">Настроить 🔊</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- О ПРИЛОЖЕНИИ -->
+    <div class="settings-section-title">
+      <span>ℹ️ О приложении</span>
+    </div>
+    <div class="settings-card update-card">
+      <div class="settings-row">
+        <div class="settings-row-main">
+          <div class="settings-row-title">Together <span id="app-version-badge" class="version-pill">v{version}</span></div>
+          <div id="update-status-text" class="settings-row-desc">Проверить наличие обновлений</div>
+        </div>
+        <div class="settings-row-ctrl">
+          <button class="btn-settings-action" id="btn-check-update" onclick="checkUpdate()">Проверить</button>
+        </div>
+      </div>
+      <div id="update-action-box" class="update-action-box" style="display:none">
+        <div id="update-notes" class="update-notes"></div>
         <button class="btn btn-primary" id="btn-apply-update" onclick="applyUpdate()" style="width:100%">📥 Скачать и установить обновление</button>
       </div>
     </div>
-    <details style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px">
-      <summary style="cursor:pointer;font-size:12px;color:rgba(255,255,255,0.6);font-weight:500;user-select:none;outline:none">🛠️ Диагностика и сеть</summary>
-      <div style="margin-top:10px">
-        <button class="btn" onclick="runDebugScan()" style="width:100%">🔍 Что видит сканер сейчас?</button>
-        <div id="debug-result" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4);max-height:160px;overflow-y:auto"></div>
-      </div>
-      <div style="margin-top:10px">
-        <button class="btn" onclick="showNetworkLog()" style="width:100%">🌐 Лог сети (последние 20 строк)</button>
-        <button class="btn" id="btn-reconnect" onclick="reconnectNetwork()" style="width:100%;margin-top:6px">🔄 Переподключиться к серверу</button>
-        <div id="network-log-result" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4);max-height:160px;overflow-y:auto;white-space:pre-wrap"></div>
+
+    <!-- ДИАГНОСТИКА -->
+    <details class="settings-accordion">
+      <summary class="settings-accordion-header">
+        <span>🛠️ Диагностика и сеть</span>
+        <span class="accordion-arrow">▾</span>
+      </summary>
+      <div class="settings-accordion-body">
+        <div style="margin-top:12px">
+          <button class="btn-settings-action btn-full" onclick="runDebugScan()">🔍 Что видит сканер сейчас?</button>
+          <div id="debug-result" class="diag-output"></div>
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn-settings-action btn-full" onclick="showNetworkLog()">🌐 Лог сети (последние 20 строк)</button>
+          <button class="btn-settings-action btn-full" id="btn-reconnect" onclick="reconnectNetwork()" style="margin-top:6px">🔄 Переподключиться к серверу</button>
+          <div id="network-log-result" class="diag-output"></div>
+        </div>
       </div>
     </details>
   </div>

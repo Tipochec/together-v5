@@ -408,6 +408,25 @@ function _wireSettingsAutoSave(){
   }
 }
 
+function setGender(val){
+  const inp = document.getElementById('inp-gender');
+  if(inp) inp.value = val;
+  updateGenderUI(val);
+  autoSaveSettings();
+}
+
+function updateGenderUI(val){
+  const maleBtn = document.getElementById('gender-male');
+  const femaleBtn = document.getElementById('gender-female');
+  if(maleBtn) maleBtn.classList.toggle('active', val === 'male');
+  if(femaleBtn) femaleBtn.classList.toggle('active', val === 'female');
+  const preview = document.getElementById('settings-avatar-preview');
+  if(preview){
+    preview.classList.remove('gender-male', 'gender-female');
+    preview.classList.add(val === 'female' ? 'gender-female' : 'gender-male');
+  }
+}
+
 function loadSettings(){
   _wireSettingsAutoSave();
   pywebview.api.get_app_version().then(v=>{
@@ -416,7 +435,10 @@ function loadSettings(){
   }).catch(()=>{});
   pywebview.api.get_settings().then(s=>{
     document.getElementById('inp-name').value=s.name||'';
-    document.getElementById('inp-gender').value=s.gender||'male';
+    const gender = s.gender || 'male';
+    const inpGender = document.getElementById('inp-gender');
+    if(inpGender) inpGender.value = gender;
+    updateGenderUI(gender);
     document.getElementById('inp-pairing-key').value=s.pairing_key||'';
     const autoTog = document.getElementById('tog-autostart');
     if (autoTog) autoTog.checked = s.autostart || false;
