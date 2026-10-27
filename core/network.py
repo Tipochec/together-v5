@@ -4,6 +4,7 @@
 import json, threading, time, socket, os, sys, uuid
 from .chat import ChatManager
 from core.paths import data_path
+from core.version import APP_VERSION
 from datetime import datetime
 
 RELAY_HOST = "195.19.213.70"
@@ -410,7 +411,8 @@ class NetworkManager:
                     "type": "register",
                     "pairing_key": key,
                     "device_id": s.get("device_id") or "",
-                    "name": s.get("name") or "Пользователь"
+                    "name": s.get("name") or "Пользователь",
+                    "version": APP_VERSION
                 }
                 self._send_raw(sock, reg_packet)
 
