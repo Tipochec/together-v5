@@ -17,7 +17,12 @@ HTML = r"""
 </head>
 <body>
 <div class="titlebar pywebview-drag-region">
-  <div class="titlebar-title"><span class="heart">♥</span> Together{test_tag}</div>
+  <div class="titlebar-title">
+    <span class="heart">♥</span> Together{test_tag}
+    <span id="titlebar-version-badge" class="titlebar-version-badge" onclick="onTitlebarVersionClick()" title="Проверка обновлений...">
+      <span class="version-dot"></span><span id="titlebar-version-text">v{version}</span>
+    </span>
+  </div>
     <div class="titlebar-btns">
         <button class="titlebar-btn" id="btn-volume" onclick="toggleVolumeMixer()" title="Микшер громкости">🔊</button>
         <button class="titlebar-btn" id="btn-chat" onclick="openChat()" title="Чат" style="position:relative">
@@ -60,6 +65,19 @@ HTML = r"""
   </div>
 </div>
 <div class="content">
+  <div id="update-banner" class="update-banner" style="display:none">
+    <div class="update-banner-left" onclick="onUpdateBannerClick()">
+      <span class="update-banner-icon">🚀</span>
+      <div class="update-banner-info">
+        <div class="update-banner-title">Доступно обновление Together <span id="update-banner-ver">v{version}</span>!</div>
+        <div class="update-banner-sub">Нажмите для перехода или обновите сразу</div>
+      </div>
+    </div>
+    <div class="update-banner-actions">
+      <button class="update-banner-btn" id="btn-banner-update" onclick="applyUpdateFromBanner()">Обновить</button>
+      <button class="update-banner-close" onclick="dismissUpdateBanner()" title="Скрыть плашку">✕</button>
+    </div>
+  </div>
   <div class="nav">
     <button class="nav-btn active" onclick="showPage('main',this)">Активность</button>
     <button class="nav-btn" onclick="showPage('stats',this)">Статистика</button>

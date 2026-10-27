@@ -450,6 +450,36 @@ function loadSettings(){
 }
 
 let _updateInfo = null;
+let _bannerDismissed = false;
+
+function dismissUpdateBanner(){
+  _bannerDismissed = true;
+  const banner = document.getElementById('update-banner');
+  if(banner) banner.style.display = 'none';
+}
+
+function onUpdateBannerClick(){
+  const navBtns = document.querySelectorAll('.nav-btn');
+  if(navBtns && navBtns[2]) showPage('settings', navBtns[2]);
+}
+
+function applyUpdateFromBanner(){
+  const bannerBtn = document.getElementById('btn-banner-update');
+  if(bannerBtn){
+    bannerBtn.disabled = true;
+    bannerBtn.textContent = '⏳ Загрузка...';
+  }
+  applyUpdate();
+}
+
+function onTitlebarVersionClick(){
+  if(_updateInfo && _updateInfo.has_update){
+    const navBtns = document.querySelectorAll('.nav-btn');
+    if(navBtns && navBtns[2]) showPage('settings', navBtns[2]);
+  } else {
+    checkUpdate(false);
+  }
+}
 
 function checkUpdate(silent = false){
   const btn = document.getElementById('btn-check-update');
@@ -457,9 +487,12 @@ function checkUpdate(silent = false){
   const actionBox = document.getElementById('update-action-box');
   const notesEl = document.getElementById('update-notes');
   const badge = document.getElementById('app-version-badge');
+  const titlebarBadge = document.getElementById('titlebar-version-badge');
+  const titlebarText = document.getElementById('titlebar-version-text');
 
   if(btn && !silent) btn.textContent = '⏳ Поиск...';
   if(statusEl && !silent) statusEl.textContent = 'Проверяем GitHub Releases...';
+  if(!silent && titlebarBadge) titlebarBadge.title = 'Проверяем обновления...';
 
   pywebview.api.get_app_version().then(v=>{
     if(badge) badge.textContent = 'v' + v;
@@ -471,8 +504,9 @@ function checkUpdate(silent = false){
       if(statusEl && !silent) statusEl.textContent = 'Не удалось проверить обновления';
       return;
     }
-    if(badge && res.current_version) {
-      badge.textContent = 'v' + res.current_version;
+    const currentVer = res.current_version || '';
+    if(badge && currentVer) {
+      badge.textContent = 'v' + currentVer;
     }
 
     if(res.has_update && res.download_url){
@@ -486,14 +520,47 @@ function checkUpdate(silent = false){
       if(actionBox) {
         actionBox.style.display = 'block';
       }
+
+      // Бейдж в заголовке
+      if(titlebarBadge){
+        titlebarBadge.classList.remove('is-latest');
+        titlebarBadge.classList.add('has-update');
+        titlebarBadge.title = `Доступно обновление Together v${res.latest_version}! Нажмите для перехода к обновлению`;
+      }
+      if(titlebarText){
+        titlebarText.textContent = `v${currentVer} → v${res.latest_version} 🚀`;
+      }
+
+      // Плашка вверху страницы
+      const updateBanner = document.getElementById('update-banner');
+      const updateBannerVer = document.getElementById('update-banner-ver');
+      if(updateBanner && !_bannerDismissed){
+        if(updateBannerVer) updateBannerVer.textContent = 'v' + res.latest_version;
+        updateBanner.style.display = 'flex';
+      }
     } else {
       _updateInfo = null;
       if(actionBox) actionBox.style.display = 'none';
-      if(statusEl){
-        if(res.error){
-          if(!silent) statusEl.textContent = res.error;
-        } else {
-          statusEl.textContent = `У вас последняя версия (v${res.current_version})`;
+      const updateBanner = document.getElementById('update-banner');
+      if(updateBanner) updateBanner.style.display = 'none';
+
+      if(res.error){
+        if(statusEl && !silent) statusEl.textContent = res.error;
+        if(titlebarBadge){
+          titlebarBadge.classList.remove('is-latest', 'has-update');
+          titlebarBadge.title = `Together v${currentVer} (${res.error})`;
+        }
+      } else {
+        if(statusEl){
+          statusEl.textContent = `У вас последняя версия (v${currentVer})`;
+        }
+        if(titlebarBadge){
+          titlebarBadge.classList.add('is-latest');
+          titlebarBadge.classList.remove('has-update');
+          titlebarBadge.title = `У вас актуальная версия Together v${currentVer} (обновлений не требуется)`;
+        }
+        if(titlebarText){
+          titlebarText.textContent = `v${currentVer} ✓`;
         }
       }
     }
@@ -507,9 +574,15 @@ function applyUpdate(){
   if(!_updateInfo || !_updateInfo.download_url) return;
   const btn = document.getElementById('btn-apply-update');
   const checkBtn = document.getElementById('btn-check-update');
+  const bannerBtn = document.getElementById('btn-banner-update');
+
   if(btn) {
     btn.disabled = true;
     btn.textContent = '⏳ Загрузка обновления...';
+  }
+  if(bannerBtn) {
+    bannerBtn.disabled = true;
+    bannerBtn.textContent = '⏳ Загрузка...';
   }
   if(checkBtn) {
     checkBtn.disabled = true;
@@ -521,11 +594,18 @@ function applyUpdate(){
           btn.disabled = true;
           btn.textContent = '🚀 Перезапуск приложения...';
         }
+        if(bannerBtn) {
+          bannerBtn.textContent = '🚀 Перезапуск...';
+        }
       } else if(res.dev_mode){
         alert(res.message);
         if(btn) {
           btn.disabled = false;
           btn.textContent = '📥 Скачать и установить обновление';
+        }
+        if(bannerBtn) {
+          bannerBtn.disabled = false;
+          bannerBtn.textContent = 'Обновить';
         }
         if(checkBtn) checkBtn.disabled = false;
       }
@@ -535,6 +615,10 @@ function applyUpdate(){
         btn.disabled = false;
         btn.textContent = '📥 Скачать и установить обновление';
       }
+      if(bannerBtn) {
+        bannerBtn.disabled = false;
+        bannerBtn.textContent = 'Обновить';
+      }
       if(checkBtn) checkBtn.disabled = false;
     }
   }).catch(e=>{
@@ -542,6 +626,10 @@ function applyUpdate(){
     if(btn) {
       btn.disabled = false;
       btn.textContent = '📥 Скачать и установить обновление';
+    }
+    if(bannerBtn) {
+      bannerBtn.disabled = false;
+      bannerBtn.textContent = 'Обновить';
     }
     if(checkBtn) checkBtn.disabled = false;
   });
@@ -552,6 +640,11 @@ function onUpdateProgress(pct){
   if(btn) {
     btn.disabled = true;
     btn.textContent = `⏳ Загрузка (${pct}%)...`;
+  }
+  const bannerBtn = document.getElementById('btn-banner-update');
+  if(bannerBtn) {
+    bannerBtn.disabled = true;
+    bannerBtn.textContent = `⏳ ${pct}%`;
   }
 }
 

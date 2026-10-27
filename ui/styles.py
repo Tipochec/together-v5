@@ -9,6 +9,149 @@ CSS = r"""
     -webkit-app-region:drag;border-bottom:0.5px solid rgba(255,255,255,0.06);justify-content:space-between}
   .titlebar-title{font-size:13px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:8px}
   .heart{color:#d4537e}
+  .titlebar-version-badge{
+    -webkit-app-region:no-drag;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:2px 7px;
+    background:rgba(255,255,255,0.05);
+    border:0.5px solid rgba(255,255,255,0.09);
+    border-radius:10px;
+    font-size:10.5px;
+    color:rgba(255,255,255,0.45);
+    cursor:pointer;
+    transition:all .15s ease;
+    user-select:none;
+  }
+  .titlebar-version-badge:hover{
+    background:rgba(255,255,255,0.09);
+    color:rgba(255,255,255,0.85);
+    border-color:rgba(255,255,255,0.18);
+  }
+  .titlebar-version-badge .version-dot{
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.25);
+    transition:all .2s;
+  }
+  /* Состояние: Версия актуальна */
+  .titlebar-version-badge.is-latest .version-dot{
+    background:#1d9e75;
+    box-shadow:0 0 5px rgba(29,158,117,0.7);
+  }
+  .titlebar-version-badge.is-latest{
+    color:rgba(255,255,255,0.65);
+  }
+  /* Состояние: Доступно обновление */
+  .titlebar-version-badge.has-update{
+    background:linear-gradient(135deg, rgba(83,74,183,0.35), rgba(212,83,126,0.35));
+    border-color:rgba(212,83,126,0.5);
+    color:#ffadc9;
+    font-weight:600;
+    box-shadow:0 0 10px rgba(212,83,126,0.25);
+  }
+  .titlebar-version-badge.has-update .version-dot{
+    background:#d4537e;
+    box-shadow:0 0 6px #d4537e;
+  }
+
+  /* Плашка обновления вверху страницы */
+  .update-banner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:9px 12px;
+    margin-bottom:12px;
+    background:linear-gradient(135deg, rgba(35,28,52,0.95), rgba(46,26,40,0.95));
+    border:0.5px solid rgba(212,83,126,0.35);
+    border-radius:12px;
+    box-shadow:0 4px 16px rgba(0,0,0,0.25);
+    animation:slideDownBanner 0.22s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes slideDownBanner{
+    from{opacity:0;transform:translateY(-8px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .update-banner-left{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    cursor:pointer;
+    flex:1;
+    min-width:0;
+  }
+  .update-banner-icon{
+    font-size:16px;
+    flex-shrink:0;
+  }
+  .update-banner-info{
+    min-width:0;
+  }
+  .update-banner-title{
+    font-size:12px;
+    font-weight:600;
+    color:#fff;
+    line-height:1.3;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .update-banner-title span{
+    color:#ff9ec4;
+  }
+  .update-banner-sub{
+    font-size:10.5px;
+    color:rgba(255,255,255,0.45);
+    line-height:1.2;
+    margin-top:1px;
+  }
+  .update-banner-actions{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-shrink:0;
+    margin-left:8px;
+  }
+  .update-banner-btn{
+    padding:5px 12px;
+    border-radius:7px;
+    border:none;
+    background:linear-gradient(135deg, #6c5ce7, #d4537e);
+    color:#fff;
+    font-size:11.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .15s ease;
+    box-shadow:0 2px 8px rgba(108,92,231,0.35);
+  }
+  .update-banner-btn:hover{
+    opacity:0.92;
+    transform:scale(1.02);
+  }
+  .update-banner-btn:active{
+    transform:scale(0.97);
+  }
+  .update-banner-btn:disabled{
+    opacity:0.5;
+    pointer-events:none;
+  }
+  .update-banner-close{
+    background:transparent;
+    border:none;
+    color:rgba(255,255,255,0.4);
+    cursor:pointer;
+    font-size:12px;
+    padding:4px 6px;
+    border-radius:4px;
+    transition:background .15s, color .15s;
+  }
+  .update-banner-close:hover{
+    background:rgba(255,255,255,0.08);
+    color:#fff;
+  }
+
   .titlebar-btns{-webkit-app-region:no-drag;display:flex;gap:4px}
   .titlebar-close{width:28px;height:28px;border-radius:6px;border:none;
     background:transparent;color:rgba(255,255,255,0.3);cursor:pointer;font-size:15px;
