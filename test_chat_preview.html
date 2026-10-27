@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Together • Тестовый просмотр нового дизайна чата</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+body {
+    background: #09090d;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Верхняя панель управления демонстрацией */
+.demo-banner {
+    width: 380px;
+    max-width: 100%;
+    margin-bottom: 14px;
+    background: rgba(26, 24, 32, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.demo-info {
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.85);
+}
+.demo-info span {
+    color: #a89ef0;
+    font-weight: 600;
+}
+.theme-switch {
+    display: flex;
+    gap: 6px;
+}
+.theme-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 5px 9px;
+    font-size: 11.5px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.15s ease;
+}
+.theme-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+.theme-btn.active {
+    background: #6c5ce7;
+    color: #fff;
+    font-weight: 600;
+}
+.theme-btn.pink.active {
+    background: #d4537e;
+}
+
+/* Окно чата (размер 380x580 точь-в-точь как в Together) */
+.chat-window {
+    width: 380px;
+    height: 580px;
+    background: #0f0f13;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255,255,255,0.04);
+    position: relative;
+}
+
+/* Заголовок (Titlebar) */
+.titlebar {
+    height: 46px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    background: rgba(26, 24, 32, 0.75);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    user-select: none;
+}
+.title-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.title-icon-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.25), rgba(212,83,126,0.25));
+    border: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+.title-text-group {
+    display: flex;
+    flex-direction: column;
+}
+.title-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.2;
+}
+.title-status {
+    font-size: 10px;
+    color: #6ee7b7;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.title-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+}
+.title-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.title-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.15s ease;
+}
+.title-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    transform: translateY(-1px);
+}
+.title-btn.btn-heart:hover {
+    background: rgba(212, 83, 126, 0.25);
+    color: #ff6b8b;
+}
+
+/* Область сообщений */
+.messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Пузыри сообщений */
+.message {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    word-break: break-word;
+    font-size: 13px;
+    line-height: 1.45;
+    position: relative;
+    box-sizing: border-box;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Мои сообщения */
+.message.me {
+    margin-left: auto;
+    background: linear-gradient(135deg, #6c5ce7 0%, #534ab7 100%);
+    color: #fff;
+    border-radius: 16px 16px 4px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.25);
+}
+body.theme-pink .message.me {
+    background: linear-gradient(135deg, #e84393 0%, #d4537e 100%);
+    box-shadow: 0 4px 16px rgba(212, 83, 126, 0.28);
+}
+
+/* Сообщения партнёра */
+.message.partner {
+    margin-right: auto;
+    background: #1a1820;
+    color: #f1f0f5;
+    border-radius: 16px 16px 16px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.sender {
+    font-size: 11px;
+    font-weight: 600;
+    color: #d4537e;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+body.theme-pink .sender {
+    color: #a89ef0;
+}
+
+.msg-text {
+    white-space: pre-wrap;
+    user-select: text;
+}
+.msg-text.big-emoji {
+    font-size: 32px;
+    line-height: 1.25;
+}
+
+.msg-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 4px;
+}
+.time {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+}
+.message.me .time {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Кнопки действий (Копировать, Ответить) при наведении */
+.msg-actions {
+    position: absolute;
+    top: -12px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 5;
+}
+.message:hover .msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+.action-pill-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(26, 24, 32, 0.92);
+    backdrop-filter: blur(8px);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: all 0.12s ease;
+}
+.action-pill-btn:hover {
+    background: #6c5ce7;
+    color: #fff;
+    transform: scale(1.08);
+}
+body.theme-pink .action-pill-btn:hover {
+    background: #d4537e;
+}
+
+/* Цитата ответа внутри сообщения */
+.reply-quote {
+    border-left: 3px solid rgba(255, 255, 255, 0.45);
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 8px;
+    padding: 5px 9px;
+    margin-bottom: 7px;
+    font-size: 11.5px;
+    backdrop-filter: blur(4px);
+}
+.message.partner .reply-quote {
+    border-left-color: #6c5ce7;
+}
+body.theme-pink .message.partner .reply-quote {
+    border-left-color: #d4537e;
+}
+.reply-quote-sender {
+    color: #c4b5fd;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.reply-quote-text {
+    color: rgba(255, 255, 255, 0.65);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Плашка над полем ввода "Ответить на..." */
+.reply-preview {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    background: rgba(26, 24, 32, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(10px);
+}
+.reply-preview-body {
+    flex: 1;
+    min-width: 0;
+    border-left: 3px solid #6c5ce7;
+    padding-left: 8px;
+}
+body.theme-pink .reply-preview-body {
+    border-left-color: #d4537e;
+}
+.reply-preview-sender {
+    font-size: 11px;
+    font-weight: 600;
+    color: #a89ef0;
+}
+body.theme-pink .reply-preview-sender {
+    color: #f472b6;
+}
+.reply-preview-text {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.reply-preview-cancel {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.reply-preview-cancel:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+/* Нижняя панель ввода (Dock) */
+.input-dock {
+    min-height: 58px;
+    flex-shrink: 0;
+    background: rgba(20, 18, 26, 0.95);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 9px 12px;
+    position: relative;
+}
+
+.input-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+}
+.input-wrapper textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #1a1820;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    outline: none;
+    border-radius: 12px;
+    padding: 8px 48px 8px 12px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: none;
+    max-height: 110px;
+    overflow-y: auto;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input-wrapper textarea:focus {
+    border-color: rgba(108, 92, 231, 0.6);
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+}
+body.theme-pink .input-wrapper textarea:focus {
+    border-color: rgba(212, 83, 126, 0.6);
+    box-shadow: 0 0 0 2px rgba(212, 83, 126, 0.2);
+}
+
+.char-counter {
+    position: absolute;
+    right: 8px;
+    bottom: 7px;
+    font-size: 10px;
+    line-height: 1;
+    color: rgba(255,255,255,0.4);
+    background: rgba(26,24,32,0.95);
+    padding: 2px 5px;
+    border-radius: 4px;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+}
+.char-counter.warn { color: #f59e0b; }
+.char-counter.limit { color: #ff5277; font-weight: 700; }
+
+.dock-btn {
+    width: 38px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 11px;
+    background: #1a1820;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: all 0.15s ease;
+}
+.dock-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+.dock-btn.send-btn {
+    background: linear-gradient(135deg, #6c5ce7 0%, #534ab7 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+}
+body.theme-pink .dock-btn.send-btn {
+    background: linear-gradient(135deg, #e84393 0%, #d4537e 100%);
+    box-shadow: 0 4px 14px rgba(212, 83, 126, 0.35);
+}
+.dock-btn.send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 18px rgba(108, 92, 231, 0.5);
+}
+
+/* Панель смайлов */
+.emoji-picker {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 64px;
+    max-height: 270px;
+    background: rgba(26, 24, 32, 0.96);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 10px 8px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    overflow-y: auto;
+    z-index: 30;
+    display: none;
+}
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+}
+.emoji-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    padding: 6px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s ease, transform 0.1s ease;
+}
+.emoji-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.18);
+}
+.kaomoji-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 10px 4px 6px 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 8px;
+}
+.kaomoji-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 0 4px 0;
+}
+.kaomoji-item {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #e8e6f0;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+}
+.kaomoji-item:hover {
+    background: rgba(108, 92, 231, 0.35);
+    border-color: rgba(108, 92, 231, 0.5);
+    color: #fff;
+    transform: scale(1.04);
+}
+
+/* Модальное окно подтверждения очистки */
+.confirm-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+.confirm-box {
+    width: calc(100% - 48px);
+    max-width: 290px;
+    background: #1e1c26;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.confirm-text {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 16px;
+}
+.confirm-btns {
+    display: flex;
+    gap: 8px;
+}
+.confirm-btn {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.confirm-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+}
+.confirm-cancel:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+.confirm-ok {
+    background: #d4537e;
+    color: #fff;
+}
+.confirm-ok:hover {
+    background: #e84393;
+}
+
+/* Летающие сердечки */
+.heart-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 99;
+}
+.flying-heart {
+    position: absolute;
+    font-size: 18px;
+    animation: flyUp 1.2s ease-out forwards;
+}
+@keyframes flyUp {
+    0% { opacity: 1; transform: translateY(0) scale(0.6); }
+    50% { opacity: 0.9; transform: translateY(-30px) scale(1.2); }
+    100% { opacity: 0; transform: translateY(-65px) scale(1.5); }
+}
+.heart-banner {
+    position: absolute;
+    top: 54px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(212, 83, 126, 0.95);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(212, 83, 126, 0.45);
+    z-index: 99;
+    pointer-events: none;
+    animation: bannerPop 3.2s ease-in-out forwards;
+}
+@keyframes bannerPop {
+    0% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+    15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+    25% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -15px) scale(0.95); }
+}
+</style>
+</head>
+<body>
+
+<!-- Панель управления превью -->
+<div class="demo-banner">
+    <div class="demo-info">
+        Дизайн: <span>Card Style (как в Настройках)</span>
+    </div>
+    <div class="theme-switch">
+        <button class="theme-btn active" onclick="setAccent('purple')">♂ Синий/Фиолет</button>
+        <button class="theme-btn pink" onclick="setAccent('pink')">♀ Розовый</button>
+    </div>
+</div>
+
+<!-- Окно чата -->
+<div class="chat-window">
+
+    <!-- Заголовок -->
+    <div class="titlebar">
+        <div class="title-left">
+            <div class="title-icon-badge">💬</div>
+            <div class="title-text-group">
+                <div class="title-name">Together Чат</div>
+                <div class="title-status">
+                    <span class="title-status-dot"></span>
+                    <span>в сети • любимка</span>
+                </div>
+            </div>
+        </div>
+        <div class="title-actions">
+            <button class="title-btn btn-heart" onclick="triggerHeartBurst()" title="Отправить сердечко (ОХАЁ)">❤️</button>
+            <button class="title-btn" onclick="showConfirm()" title="Очистить историю">🗑</button>
+            <button class="title-btn" onclick="alert('Это тестовый режим демонстрации!')" title="Закрыть">✕</button>
+        </div>
+    </div>
+
+    <!-- Список сообщений -->
+    <div id="chat-list" class="messages">
+
+        <div class="message partner">
+            <div class="sender">Любимка 💖</div>
+            <div class="msg-text">Привет, котик! Как твои делишки сегодня? 🥰</div>
+            <div class="msg-footer">
+                <span class="time">21:10</span>
+            </div>
+            <div class="msg-actions">
+                <button class="action-pill-btn" title="Ответить" onclick="startReply('Любимка 💖', 'Привет, котик! Как твои делишки сегодня? 🥰')">↩</button>
+                <button class="action-pill-btn" title="Скопировать" onclick="copyText('Привет, котик! Как твои делишки сегодня? 🥰', this)">📋</button>
+            </div>
+        </div>
+
+        <div class="message me">
+            <div class="msg-text">Привет, солнце! Всё отлично, наконец-то закончил с делами ✨</div>
+            <div class="msg-footer">
+                <span class="time">21:12</span>
+            </div>
+            <div class="msg-actions">
+                <button class="action-pill-btn" title="Ответить" onclick="startReply('Вы', 'Привет, солнце! Всё отлично, наконец-то закончил с делами ✨')">↩</button>
+                <button class="action-pill-btn" title="Скопировать" onclick="copyText('Привет, солнце! Всё отлично, наконец-то закончил с делами ✨', this)">📋</button>
+            </div>
+        </div>
+
+        <div class="message partner">
+            <div class="sender">Любимка 💖</div>
+            <div class="reply-quote">
+                <div class="reply-quote-sender">Вы</div>
+                <div class="reply-quote-text">Привет, солнце! Всё отлично, наконец-то закончил с делами ✨</div>
+            </div>
+            <div class="msg-text">Ураа! Тогда пойдём поиграем во что-нибудь уютное вместе? 🎮</div>
+            <div class="msg-footer">
+                <span class="time">21:14</span>
+            </div>
+            <div class="msg-actions">
+                <button class="action-pill-btn" title="Ответить" onclick="startReply('Любимка 💖', 'Ураа! Тогда пойдём поиграем во что-нибудь уютное вместе? 🎮')">↩</button>
+                <button class="action-pill-btn" title="Скопировать" onclick="copyText('Ураа! Тогда пойдём поиграем во что-нибудь уютное вместе? 🎮', this)">📋</button>
+            </div>
+        </div>
+
+        <div class="message me">
+            <div class="msg-text big-emoji">🥰❤️🎉</div>
+            <div class="msg-footer">
+                <span class="time">21:15</span>
+            </div>
+            <div class="msg-actions">
+                <button class="action-pill-btn" title="Ответить" onclick="startReply('Вы', '🥰❤️🎉')">↩</button>
+                <button class="action-pill-btn" title="Скопировать" onclick="copyText('🥰❤️🎉', this)">📋</button>
+            </div>
+        </div>
+
+        <div class="message partner">
+            <div class="sender">Любимка 💖</div>
+            <div class="msg-text">(づ｡◕‿‿◕｡)づ Обнимаю крепко!</div>
+            <div class="msg-footer">
+                <span class="time">21:16</span>
+            </div>
+            <div class="msg-actions">
+                <button class="action-pill-btn" title="Ответить" onclick="startReply('Любимка 💖', '(づ｡◕‿‿◕｡)づ Обнимаю крепко!')">↩</button>
+                <button class="action-pill-btn" title="Скопировать" onclick="copyText('(づ｡◕‿‿◕｡)づ Обнимаю крепко!', this)">📋</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Всплывающий выбор эмодзи / каомодзи -->
+    <div id="emoji-picker" class="emoji-picker">
+        <div class="emoji-grid" id="emoji-grid"></div>
+        <div class="kaomoji-header">Каомодзи</div>
+        <div class="kaomoji-grid" id="kaomoji-grid"></div>
+    </div>
+
+    <!-- Плашка "Отвечаете на..." -->
+    <div id="reply-preview" class="reply-preview" style="display:none">
+        <div class="reply-preview-body">
+            <div class="reply-preview-sender" id="reply-preview-sender"></div>
+            <div class="reply-preview-text" id="reply-preview-text"></div>
+        </div>
+        <button class="reply-preview-cancel" onclick="cancelReply()">✕</button>
+    </div>
+
+    <!-- Нижний док ввода -->
+    <div class="input-dock">
+        <div class="input-wrapper">
+            <textarea
+                id="message"
+                rows="1"
+                maxlength="500"
+                placeholder="Напишите сообщение..."
+                oninput="onInputChanged(this)"
+                onkeydown="onKeyDown(event)"></textarea>
+            <div id="char-counter" class="char-counter" style="display:none">0/500</div>
+        </div>
+        <button class="dock-btn" id="emoji-toggle-btn" onclick="toggleEmojiPicker()" title="Смайлики">🙂</button>
+        <button class="dock-btn send-btn" onclick="sendMessage()" title="Отправить">➤</button>
+    </div>
+
+    <!-- Модалка подтверждения очистки -->
+    <div id="confirm-overlay" class="confirm-overlay">
+        <div class="confirm-box">
+            <div class="confirm-text">Очистить историю чата у себя?<br>У партнёра переписка не тронется.</div>
+            <div class="confirm-btns">
+                <button class="confirm-btn confirm-cancel" onclick="hideConfirm()">Отмена</button>
+                <button class="confirm-btn confirm-ok" onclick="confirmClear()">Очистить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для сердечек -->
+    <div id="heart-burst" class="heart-burst"></div>
+
+</div>
+
+<script>
+let _replyingTo = null;
+let _emojiPickerFilled = false;
+
+const ALL_EMOJIS = [
+    "😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃",
+    "😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙",
+    "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
+    "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
+    "😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮",
+    "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
+    "❣️","💕","💞","💓","💗","💖","💘","💝","💟","💌",
+    "💋","🫂","💍","💎","💐","🌸","💮","🏵️","🌹","🥀",
+    "🐱","😸","😹","😻","😼","😽","🐶","🐕","🦊","🦄",
+    "☕","🍵","🧋","🍷","🍕","🍔","🍟","🍰","🍫","🍓",
+    "👍","👊","👏","🙌","🤝","🙏","✌️","✨","🔥","🎉"
+];
+
+const ALL_KAOMOJIS = [
+    "(◕‿◕)", "(｡♥‿♥｡)", "(づ｡◕‿‿◕｡)づ", "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
+    "(◡‿◡✿)", "(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)", "(◕‿◕)♡", "(*^▽^*)",
+    "(≧◡≦)", "(o˘◡˘o)", "(っ˘з(˘⌣˘ )", "(♡-_-♡)",
+    "(=^･ω･^=)", "(ฅ^•ﻌ•^ฅ)", "(ง'̀-'́)ง", "¯\\_(ツ)_/¯"
+];
+
+function setAccent(theme) {
+    const btns = document.querySelectorAll('.theme-btn');
+    if (theme === 'pink') {
+        document.body.classList.add('theme-pink');
+        btns[0].classList.remove('active');
+        btns[1].classList.add('active');
+    } else {
+        document.body.classList.remove('theme-pink');
+        btns[0].classList.add('active');
+        btns[1].classList.remove('active');
+    }
+}
+
+function startReply(sender, text) {
+    _replyingTo = { sender, text };
+    document.getElementById("reply-preview-sender").textContent = sender;
+    document.getElementById("reply-preview-text").textContent = text;
+    document.getElementById("reply-preview").style.display = "flex";
+    const input = document.getElementById("message");
+    if (input) input.focus();
+}
+
+function cancelReply() {
+    _replyingTo = null;
+    document.getElementById("reply-preview").style.display = "none";
+}
+
+function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = "✓";
+        setTimeout(() => { btn.textContent = orig; }, 1200);
+    }).catch(() => {});
+}
+
+function onInputChanged(textarea) {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+    const counter = document.getElementById("char-counter");
+    const len = textarea.value.length;
+    if (len >= 350) {
+        counter.textContent = `${len}/500`;
+        counter.style.display = "block";
+        counter.className = len >= 500 ? "char-counter limit" : (len >= 450 ? "char-counter warn" : "char-counter");
+    } else {
+        counter.style.display = "none";
+    }
+}
+
+function onKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+function sendMessage() {
+    const input = document.getElementById("message");
+    const text = input.value.trim().slice(0, 500);
+    if (!text) return;
+
+    const chat = document.getElementById("chat-list");
+    const div = document.createElement("div");
+    div.className = "message me";
+
+    if (_replyingTo) {
+        const quote = document.createElement("div");
+        quote.className = "reply-quote";
+        const qs = document.createElement("div");
+        qs.className = "reply-quote-sender";
+        qs.textContent = _replyingTo.sender;
+        const qt = document.createElement("div");
+        qt.className = "reply-quote-text";
+        qt.textContent = _replyingTo.text;
+        quote.appendChild(qs);
+        quote.appendChild(qt);
+        div.appendChild(quote);
+    }
+
+    const body = document.createElement("div");
+    body.className = "msg-text";
+    body.textContent = text;
+    if (isOnlyEmojis(text)) body.classList.add("big-emoji");
+    div.appendChild(body);
+
+    const footer = document.createElement("div");
+    footer.className = "msg-footer";
+    const time = document.createElement("span");
+    time.className = "time";
+    const now = new Date();
+    time.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    footer.appendChild(time);
+    div.appendChild(footer);
+
+    const actions = document.createElement("div");
+    actions.className = "msg-actions";
+    actions.innerHTML = `
+        <button class="action-pill-btn" title="Ответить" onclick="startReply('Вы', ${JSON.stringify(text)})">↩</button>
+        <button class="action-pill-btn" title="Скопировать" onclick="copyText(${JSON.stringify(text)}, this)">📋</button>
+    `;
+    div.appendChild(actions);
+
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+
+    input.value = "";
+    input.style.height = "auto";
+    cancelReply();
+    onInputChanged(input);
+}
+
+function isOnlyEmojis(str) {
+    if (!str) return false;
+    const clean = str.trim();
+    if (!clean) return false;
+    const emojiRegex = /^(?:\p{Extended_Pictographic}|\u200d|\ufe0f|\u20e3|\s)+$/u;
+    if (!emojiRegex.test(clean)) return false;
+    const count = [...clean.replace(/\s+/g, '')].length;
+    return count > 0 && count <= 8;
+}
+
+function toggleEmojiPicker() {
+    const panel = document.getElementById("emoji-picker");
+    if (!panel) return;
+    if (panel.style.display === "block") {
+        panel.style.display = "none";
+        return;
+    }
+    if (!_emojiPickerFilled) {
+        const grid = document.getElementById("emoji-grid");
+        grid.innerHTML = "";
+        for (const emoji of ALL_EMOJIS) {
+            const el = document.createElement("span");
+            el.className = "emoji-item";
+            el.textContent = emoji;
+            el.onclick = () => insertEmoji(emoji);
+            grid.appendChild(el);
+        }
+        const kGrid = document.getElementById("kaomoji-grid");
+        kGrid.innerHTML = "";
+        for (const km of ALL_KAOMOJIS) {
+            const el = document.createElement("span");
+            el.className = "kaomoji-item";
+            el.textContent = km;
+            el.onclick = () => insertEmoji(km);
+            kGrid.appendChild(el);
+        }
+        _emojiPickerFilled = true;
+    }
+    panel.style.display = "block";
+}
+
+function insertEmoji(emoji) {
+    const input = document.getElementById("message");
+    if (input) {
+        input.value += emoji;
+        input.focus();
+        onInputChanged(input);
+    }
+    document.getElementById("emoji-picker").style.display = "none";
+}
+
+document.addEventListener("click", (ev) => {
+    const panel = document.getElementById("emoji-picker");
+    const btn   = document.getElementById("emoji-toggle-btn");
+    if (!panel || panel.style.display !== "block") return;
+    if (!panel.contains(ev.target) && ev.target !== btn) {
+        panel.style.display = "none";
+    }
+});
+
+function showConfirm() {
+    document.getElementById("confirm-overlay").style.display = "flex";
+}
+function hideConfirm() {
+    document.getElementById("confirm-overlay").style.display = "none";
+}
+function confirmClear() {
+    hideConfirm();
+    document.getElementById("chat-list").innerHTML = '<div style="margin:auto;text-align:center;color:rgba(255,255,255,0.4);font-size:13px;">История чата очищена 💌</div>';
+}
+
+function triggerHeartBurst() {
+    showHeartBanner('ОХАЁ ❤️');
+    spawnHeartAnimation();
+}
+
+function showHeartBanner(text){
+    const old = document.querySelector('.heart-banner');
+    if(old) old.remove();
+    const banner = document.createElement('div');
+    banner.className = 'heart-banner';
+    banner.innerHTML = `<span>❤️</span> <span>${text}</span>`;
+    document.querySelector('.chat-window').appendChild(banner);
+    setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 3200);
+}
+
+function spawnHeartAnimation(){
+    const container = document.getElementById('heart-burst');
+    if(!container) return;
+    const hearts = ['❤️', '💖', '💕', '✨', '💓', '💗'];
+    for(let i = 0; i < 7; i++){
+        setTimeout(()=>{
+            const el = document.createElement('div');
+            el.className = 'flying-heart';
+            el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+            el.style.left = (15 + Math.random() * 70) + '%';
+            el.style.top = (40 + Math.random() * 40) + '%';
+            container.appendChild(el);
+            setTimeout(()=>el.remove(), 1200);
+        }, i * 110);
+    }
+}
+</script>
+</body>
+</html>

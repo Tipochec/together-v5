@@ -16,20 +16,21 @@ HTML = r"""
 <body>
 
 <div class="titlebar pywebview-drag-region">
-<div class="title">
-💬 Чат
-</div>
+  <div class="title-left">
+    <div class="title-icon-badge">💬</div>
+    <div class="title-text-group">
+      <div class="title-name">Together Чат</div>
+      <div class="title-status">
+        <span class="title-status-dot"></span>
+        <span id="chat-partner-status">в сети</span>
+      </div>
+    </div>
+  </div>
 
-<div style="display:flex;align-items:center;gap:4px">
-<button class="close" onclick="clearChat()" title="Очистить историю (только у себя)">
-🗑
-</button>
-
-<button class="close" onclick="pywebview.api.close_chat()" title="Закрыть">
-✕
-</button>
-</div>
-
+  <div class="title-actions">
+    <button class="title-btn btn-clear" onclick="clearChat()" title="Очистить историю (только у себя)">🗑</button>
+    <button class="title-btn btn-close" onclick="pywebview.api.close_chat()" title="Закрыть">✕</button>
+  </div>
 </div>
 
 <div id="chat-list" class="messages">
@@ -50,40 +51,37 @@ HTML = r"""
   <button class="reply-preview-cancel" onclick="cancelReply()" title="Отменить ответ">✕</button>
 </div>
 
-<div class="input">
+<div class="input-dock">
 
-<div class="input-wrapper">
-  <textarea
-    id="message"
-    rows="1"
-    maxlength="500"
-    placeholder="Напишите сообщение..."></textarea>
-  <div id="char-counter" class="char-counter" style="display:none">0/500</div>
-</div>
+  <div class="input-wrapper">
+    <textarea
+      id="message"
+      rows="1"
+      maxlength="500"
+      placeholder="Напишите сообщение..."></textarea>
+    <div id="char-counter" class="char-counter" style="display:none">0/500</div>
+  </div>
 
-<button
-class="send emoji-btn"
-id="emoji-toggle-btn"
-onclick="toggleEmojiPicker()"
-title="Смайлики">
+  <button
+    class="dock-btn emoji-btn"
+    id="emoji-toggle-btn"
+    onclick="toggleEmojiPicker()"
+    title="Смайлики">
+    🙂
+  </button>
 
-🙂
-
-</button>
-
-<button
-class="send"
-onclick="sendMessage()">
-
-➤
-
-</button>
+  <button
+    class="dock-btn send-btn"
+    onclick="sendMessage()"
+    title="Отправить">
+    ➤
+  </button>
 
 </div>
 
 <div id="confirm-overlay" class="confirm-overlay" style="display:none">
   <div class="confirm-box">
-    <div class="confirm-text">Очистить историю чата у себя?<br>Партнёра переписка не тронется.</div>
+    <div class="confirm-text">Очистить историю чата у себя?<br>У партнёра переписка не тронется.</div>
     <div class="confirm-btns">
       <button class="confirm-btn confirm-cancel" onclick="hideConfirm()">Отмена</button>
       <button class="confirm-btn confirm-ok" onclick="confirmClearChat()">Очистить</button>

@@ -7,6 +7,17 @@ async function loadChat() {
 
     chat.innerHTML = "";
 
+    if (!messages || messages.length === 0) {
+        chat.innerHTML = `
+            <div class="empty-chat">
+                <div class="empty-chat-icon">💌</div>
+                <div class="empty-chat-title">Здесь пока тихо</div>
+                <div class="empty-chat-desc">Напишите партнёру тёплое сообщение!</div>
+            </div>
+        `;
+        return;
+    }
+
     for (const msg of messages) {
 
         const div = document.createElement("div");
@@ -48,37 +59,42 @@ async function loadChat() {
         }
         div.appendChild(body);
 
+        const footer = document.createElement("div");
+        footer.className = "msg-footer";
         const time = new Date(msg.time);
-        const timeEl = document.createElement("div");
+        const timeEl = document.createElement("span");
         timeEl.className = "time";
         timeEl.textContent = time.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
         });
-        div.appendChild(timeEl);
+        footer.appendChild(timeEl);
+        div.appendChild(footer);
 
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "msg-copy";
-        copyBtn.title = "Скопировать сообщение";
-        copyBtn.textContent = "📋";
-        copyBtn.onclick = (e) => {
-            e.stopPropagation();
-            copyMessageText(msg.text, copyBtn);
-        };
-        div.appendChild(copyBtn);
+        const actions = document.createElement("div");
+        actions.className = "msg-actions";
 
-        // Кнопка "ответить" — появляется по наведению, как и 📋. Клик
-        // включает режим ответа (см. startReply) — плашка над полем
-        // ввода покажет, кому и что отвечаем, пока не отправишь/отменишь.
         const replyBtn = document.createElement("button");
-        replyBtn.className = "msg-reply";
+        replyBtn.className = "action-pill-btn";
         replyBtn.title = "Ответить";
         replyBtn.textContent = "↩";
         replyBtn.onclick = (e) => {
             e.stopPropagation();
             startReply(msg);
         };
-        div.appendChild(replyBtn);
+        actions.appendChild(replyBtn);
+
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "action-pill-btn";
+        copyBtn.title = "Скопировать сообщение";
+        copyBtn.textContent = "📋";
+        copyBtn.onclick = (e) => {
+            e.stopPropagation();
+            copyMessageText(msg.text, copyBtn);
+        };
+        actions.appendChild(copyBtn);
+
+        div.appendChild(actions);
 
         chat.appendChild(div);
     }
@@ -358,6 +374,14 @@ async function confirmClearChat() {
 
 window.addEventListener("pywebviewready", () => {
     loadChat();
+    try {
+        pywebview.api.get_state().then(state => {
+            if (state && state.partner && state.partner.name) {
+                const el = document.getElementById("chat-partner-status");
+                if (el) el.textContent = `${state.connected ? "в сети" : "не в сети"} • ${state.partner.name}`;
+            }
+        }).catch(() => {});
+    } catch(e) {}
     const input = document.getElementById("message");
     if (input) {
         input.focus();

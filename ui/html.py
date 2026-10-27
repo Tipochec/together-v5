@@ -338,6 +338,9 @@ HTML = r"""
           <button class="btn-settings-action btn-full" id="btn-reconnect" onclick="reconnectNetwork()" style="margin-top:6px">🔄 Переподключиться к серверу</button>
           <div id="network-log-result" class="diag-output"></div>
         </div>
+        <div style="margin-top:10px">
+          <button class="btn-settings-action btn-full" onclick="testUpdateBannerUI()">🧪 Протестировать плашку обновления</button>
+        </div>
       </div>
     </details>
   </div>
