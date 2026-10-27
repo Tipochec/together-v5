@@ -477,10 +477,10 @@ function testUpdateBannerUI(){
   const dummyRes = {
     has_update: true,
     is_simulation: true,
-    current_version: '1.2.8',
-    latest_version: '1.2.9',
+    current_version: '1.2.9',
+    latest_version: '1.2.10',
     download_url: 'https://github.com/Tipochec/together-v5/releases',
-    release_notes: '✨ Тестовый режим: доступна новая версия Together v1.2.9!\n• Проверка анимации и плашки вверху\n• Новый карточный дизайн чата\n• Нажмите "Обновить" или закройте плашку на крестик'
+    release_notes: '✨ Тестовый режим: доступна новая версия Together v1.2.10!\n• Проверка анимации и плашки вверху\n• Новый карточный дизайн чата\n• Нажмите "Обновить" или закройте плашку на крестик'
   };
   _updateInfo = dummyRes;
 
@@ -495,13 +495,13 @@ function testUpdateBannerUI(){
   if(titlebarBadge){
     titlebarBadge.classList.remove('is-latest');
     titlebarBadge.classList.add('has-update');
-    titlebarBadge.title = 'Доступно обновление Together v1.2.9! Нажмите для перехода к обновлению';
+    titlebarBadge.title = 'Доступно обновление Together v1.2.10! Нажмите для перехода к обновлению';
   }
   if(titlebarText){
-    titlebarText.textContent = 'v1.2.8 → v1.2.9 🚀';
+    titlebarText.textContent = 'v1.2.9 → v1.2.10 🚀';
   }
   if(updateBanner){
-    if(updateBannerVer) updateBannerVer.textContent = 'v1.2.9';
+    if(updateBannerVer) updateBannerVer.textContent = 'v1.2.10';
     updateBanner.style.display = 'flex';
   }
   if(statusEl){

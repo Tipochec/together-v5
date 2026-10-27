@@ -22,7 +22,7 @@
 ; ============================================================================
 
 #define MyAppName "Together"
-#define MyAppVersion "1.2.8"
+#define MyAppVersion "1.2.9"
 #define MyAppExeName "Together.exe"
 #define MyFirewallRuleName "Together (app)"
 #define MyFirewallPort "39721"
