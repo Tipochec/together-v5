@@ -88,6 +88,12 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Автоматически мигрируем старые устройства из room_devices в devices
+        conn.execute("""
+            INSERT OR IGNORE INTO devices (device_id, room_key, user_name, app_version, ip_address, first_seen, last_seen, packets_count)
+            SELECT device_id, room_key, 'Раннее устройство', 'старая версия', '', created_at, created_at, 1
+            FROM room_devices
+        """)
         conn.commit()
 
 
