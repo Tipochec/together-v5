@@ -476,6 +476,7 @@ function testUpdateBannerUI(){
   _bannerDismissed = false;
   const dummyRes = {
     has_update: true,
+    is_simulation: true,
     current_version: '1.2.8',
     latest_version: '1.2.9',
     download_url: 'https://github.com/Tipochec/together-v5/releases',
@@ -617,6 +618,25 @@ function applyUpdate(){
   const btn = document.getElementById('btn-apply-update');
   const checkBtn = document.getElementById('btn-check-update');
   const bannerBtn = document.getElementById('btn-banner-update');
+  const statusEl = document.getElementById('update-status-text');
+
+  if(_updateInfo && _updateInfo.is_simulation){
+    if(statusEl){
+      statusEl.innerHTML = '<span style="color:#6ee7b7;font-weight:600">✓ Тест успешен! Кнопка работает (симуляция завершена)</span>';
+    }
+    if(bannerBtn){
+      bannerBtn.textContent = '✓ Проверено';
+      bannerBtn.disabled = false;
+    }
+    if(btn){
+      btn.textContent = '✓ Тест завершён';
+      btn.disabled = false;
+    }
+    setTimeout(()=>{
+      dismissUpdateBanner();
+    }, 1800);
+    return;
+  }
 
   if(btn) {
     btn.disabled = true;

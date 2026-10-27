@@ -138,6 +138,20 @@ def apply_update(download_url, progress_callback=None):
                         except Exception:
                             pass
 
+        # Проверяем, что скачанный файл действительно исполняемый файл Windows (начинается с заголовка PE 'MZ')
+        if os.path.exists(download_target):
+            with open(download_target, "rb") as check_f:
+                magic = check_f.read(2)
+                if magic != b"MZ":
+                    try:
+                        os.remove(download_target)
+                    except Exception:
+                        pass
+                    return {
+                        "success": False,
+                        "error": "Скачанный файл повреждён или не является приложением Windows (.exe)"
+                    }
+
         if not is_frozen() or not target_exe.lower().endswith(".exe"):
             return {
                 "success": True,
