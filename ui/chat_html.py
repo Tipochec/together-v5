@@ -18,13 +18,7 @@ HTML = r"""
 <div class="titlebar pywebview-drag-region">
   <div class="title-left">
     <div class="title-icon-badge">💬</div>
-    <div class="title-text-group">
-      <div class="title-name">Together Чат</div>
-      <div class="title-status">
-        <span class="title-status-dot"></span>
-        <span id="chat-partner-status">в сети</span>
-      </div>
-    </div>
+    <div class="title-name">Together Чат</div>
   </div>
 
   <div class="title-actions">

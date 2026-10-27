@@ -374,14 +374,6 @@ async function confirmClearChat() {
 
 window.addEventListener("pywebviewready", () => {
     loadChat();
-    try {
-        pywebview.api.get_state().then(state => {
-            if (state && state.partner && state.partner.name) {
-                const el = document.getElementById("chat-partner-status");
-                if (el) el.textContent = `${state.connected ? "в сети" : "не в сети"} • ${state.partner.name}`;
-            }
-        }).catch(() => {});
-    } catch(e) {}
     const input = document.getElementById("message");
     if (input) {
         input.focus();
