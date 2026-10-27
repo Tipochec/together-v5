@@ -414,30 +414,40 @@ body{
 .input textarea::-webkit-scrollbar,
 .input-dock textarea::-webkit-scrollbar,
 .input-wrapper textarea::-webkit-scrollbar{
-    display:none;
-    width:0;
-    height:0;
-}
-
-.input-wrapper textarea.has-scroll{
-    overflow-y:auto;
-    scrollbar-width:thin;
-}
-
-.input-wrapper textarea.has-scroll::-webkit-scrollbar{
-    display:block;
     width:4px;
+    height:4px;
 }
-
-.input-wrapper textarea.has-scroll::-webkit-scrollbar-thumb{
-    background:rgba(255,255,255,0.25);
+.input textarea::-webkit-scrollbar-track,
+.input-dock textarea::-webkit-scrollbar-track,
+.input-wrapper textarea::-webkit-scrollbar-track{
+    background:transparent;
+}
+.input textarea::-webkit-scrollbar-thumb,
+.input-dock textarea::-webkit-scrollbar-thumb,
+.input-wrapper textarea::-webkit-scrollbar-thumb{
+    background:transparent;
     border-radius:4px;
 }
-
-.input-wrapper textarea.has-scroll::-webkit-scrollbar-button{
+.input textarea::-webkit-scrollbar-button,
+.input-dock textarea::-webkit-scrollbar-button,
+.input-wrapper textarea::-webkit-scrollbar-button{
     display:none !important;
     width:0 !important;
     height:0 !important;
+}
+
+.input-wrapper textarea.has-scroll{
+    overflow-y:auto !important;
+    scrollbar-width:thin !important;
+    scrollbar-color:rgba(255,255,255,0.25) transparent !important;
+}
+
+.input-wrapper textarea.has-scroll::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.25) !important;
+}
+
+.input-wrapper textarea.has-scroll::-webkit-scrollbar-thumb:hover{
+    background:rgba(255,255,255,0.4) !important;
 }
 
 .input textarea:focus, .input-dock textarea:focus, .input-wrapper textarea:focus{

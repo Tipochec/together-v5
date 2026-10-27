@@ -191,9 +191,11 @@ function autoResizeMessageBox() {
     const scrollH = input.scrollHeight;
     if (scrollH > 110) {
         input.style.height = "110px";
+        input.style.overflowY = "auto";
         input.classList.add("has-scroll");
     } else {
         input.style.height = Math.max(38, scrollH) + "px";
+        input.style.overflowY = "hidden";
         input.classList.remove("has-scroll");
     }
 }

@@ -900,9 +900,11 @@ function onInputChanged(textarea) {
     const scrollH = textarea.scrollHeight;
     if (scrollH > 110) {
         textarea.style.height = "110px";
+        textarea.style.overflowY = "auto";
         textarea.classList.add("has-scroll");
     } else {
         textarea.style.height = Math.max(38, scrollH) + "px";
+        textarea.style.overflowY = "hidden";
         textarea.classList.remove("has-scroll");
     }
     const counter = document.getElementById("char-counter");
