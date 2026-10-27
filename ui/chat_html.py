@@ -52,7 +52,8 @@ HTML = r"""
       id="message"
       rows="1"
       maxlength="500"
-      placeholder="Напишите сообщение..."></textarea>
+      placeholder="Напишите сообщение..."
+      style="height:38px;overflow-y:hidden;"></textarea>
     <div id="char-counter" class="char-counter" style="display:none">0/500</div>
   </div>
 

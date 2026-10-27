@@ -188,7 +188,14 @@ function autoResizeMessageBox() {
     const input = document.getElementById("message");
     if (!input) return;
     input.style.height = "auto";
-    input.style.height = input.scrollHeight + "px";
+    const scrollH = input.scrollHeight;
+    if (scrollH > 110) {
+        input.style.height = "110px";
+        input.classList.add("has-scroll");
+    } else {
+        input.style.height = Math.max(38, scrollH) + "px";
+        input.classList.remove("has-scroll");
+    }
 }
 
 function updateCharCounter() {
@@ -376,6 +383,7 @@ window.addEventListener("pywebviewready", () => {
     loadChat();
     const input = document.getElementById("message");
     if (input) {
+        autoResizeMessageBox();
         input.focus();
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {

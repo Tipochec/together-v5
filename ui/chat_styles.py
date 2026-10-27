@@ -399,11 +399,45 @@ body{
     color:#fff;
     font-family:inherit;
     font-size:13px;
-    line-height:1.4;
-    resize:none;
+    line-height:20px;
+    height:38px;
+    min-height:38px;
     max-height:110px;
-    overflow-y:auto;
+    resize:none;
+    overflow-x:hidden;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    -ms-overflow-style:none;
     transition:border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input textarea::-webkit-scrollbar,
+.input-dock textarea::-webkit-scrollbar,
+.input-wrapper textarea::-webkit-scrollbar{
+    display:none;
+    width:0;
+    height:0;
+}
+
+.input-wrapper textarea.has-scroll{
+    overflow-y:auto;
+    scrollbar-width:thin;
+}
+
+.input-wrapper textarea.has-scroll::-webkit-scrollbar{
+    display:block;
+    width:4px;
+}
+
+.input-wrapper textarea.has-scroll::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.25);
+    border-radius:4px;
+}
+
+.input-wrapper textarea.has-scroll::-webkit-scrollbar-button{
+    display:none !important;
+    width:0 !important;
+    height:0 !important;
 }
 
 .input textarea:focus, .input-dock textarea:focus, .input-wrapper textarea:focus{
