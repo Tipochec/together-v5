@@ -45,61 +45,67 @@ STATS_COUNTERS = {
 
 
 def init_db():
-    with sqlite3.connect(DB_FILE) as conn:
-        # Таблица комнат и привязки (максимум 2 устройства)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS room_devices (
-                room_key TEXT NOT NULL,
-                device_id TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (room_key, device_id)
-            )
-        """)
-        # Таблица оффлайн-сообщений
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS offline_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                room_key TEXT NOT NULL,
-                target_device_id TEXT,
-                payload TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        # Таблица детальной информации об устройствах и пользователях
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS devices (
-                device_id TEXT PRIMARY KEY,
-                room_key TEXT NOT NULL,
-                user_name TEXT,
-                app_version TEXT,
-                ip_address TEXT,
-                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                packets_count INTEGER DEFAULT 0
-            )
-        """)
-        # Таблица аудита событий (последние события)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS audit_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_type TEXT NOT NULL,
-                ip TEXT,
-                details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        # Автоматически мигрируем старые устройства из room_devices в devices
-        conn.execute("""
-            INSERT OR IGNORE INTO devices (device_id, room_key, user_name, app_version, ip_address, first_seen, last_seen, packets_count)
-            SELECT device_id, room_key, 'Раннее устройство', 'старая версия', '', created_at, created_at, 1
-            FROM room_devices
-        """)
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_FILE, timeout=20.0) as conn:
+            conn.execute("PRAGMA journal_mode = WAL;")
+            conn.execute("PRAGMA synchronous = NORMAL;")
+            conn.execute("PRAGMA busy_timeout = 15000;")
+            # Таблица комнат и привязки (максимум 2 устройства)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS room_devices (
+                    room_key TEXT NOT NULL,
+                    device_id TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (room_key, device_id)
+                )
+            """)
+            # Таблица оффлайн-сообщений
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS offline_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    room_key TEXT NOT NULL,
+                    target_device_id TEXT,
+                    payload TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # Таблица детальной информации об устройствах и пользователях
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS devices (
+                    device_id TEXT PRIMARY KEY,
+                    room_key TEXT NOT NULL,
+                    user_name TEXT,
+                    app_version TEXT,
+                    ip_address TEXT,
+                    first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    packets_count INTEGER DEFAULT 0
+                )
+            """)
+            # Таблица аудита событий (последние события)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_type TEXT NOT NULL,
+                    ip TEXT,
+                    details TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # Автоматически мигрируем старые устройства из room_devices в devices
+            conn.execute("""
+                INSERT OR IGNORE INTO devices (device_id, room_key, user_name, app_version, ip_address, first_seen, last_seen, packets_count)
+                SELECT device_id, room_key, 'Раннее устройство', 'старая версия', '', created_at, created_at, 1
+                FROM room_devices
+            """)
+            conn.commit()
+    except Exception as e:
+        logging.error(f"Ошибка инициализации БД: {e}")
 
 
 def log_event(event_type: str, ip: str, details: str):
     try:
-        with sqlite3.connect(DB_FILE) as conn:
+        with sqlite3.connect(DB_FILE, timeout=10.0) as conn:
             conn.execute(
                 "INSERT INTO audit_events (event_type, ip, details) VALUES (?, ?, ?)",
                 (event_type, ip, details)
@@ -107,88 +113,109 @@ def log_event(event_type: str, ip: str, details: str):
             # Храним только последние 200 событий, чтобы база не разрасталась
             conn.execute("DELETE FROM audit_events WHERE id NOT IN (SELECT id FROM audit_events ORDER BY id DESC LIMIT 200)")
             conn.commit()
-    except Exception:
-        pass
+    except Exception as err:
+        logging.warning(f"Ошибка записи события аудита: {err}")
 
 
 def update_device_record(device_id: str, room_key: str, user_name: str = None, app_version: str = None, ip_address: str = None, inc_packets: int = 0):
     if not device_id or not room_key:
         return
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with sqlite3.connect(DB_FILE) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT device_id, user_name, app_version, ip_address, packets_count FROM devices WHERE device_id = ?", (device_id,))
-        row = cur.fetchone()
-        if row:
-            name = user_name or row[1] or "Пользователь"
-            ver = app_version or row[2] or "unknown"
-            ip = ip_address or row[3] or ""
-            pkts = (row[4] or 0) + inc_packets
-            cur.execute("""
-                UPDATE devices 
-                SET room_key = ?, user_name = ?, app_version = ?, ip_address = ?, last_seen = ?, packets_count = ?
-                WHERE device_id = ?
-            """, (room_key, name, ver, ip, now_str, pkts, device_id))
-        else:
-            cur.execute("""
-                INSERT INTO devices (device_id, room_key, user_name, app_version, ip_address, first_seen, last_seen, packets_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (device_id, room_key, user_name or "Пользователь", app_version or "unknown", ip_address or "", now_str, now_str, inc_packets))
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_FILE, timeout=10.0) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT device_id, user_name, app_version, ip_address, packets_count FROM devices WHERE device_id = ?", (device_id,))
+            row = cur.fetchone()
+            if row:
+                name = user_name or row[1] or "Пользователь"
+                ver = app_version or row[2] or "unknown"
+                ip = ip_address or row[3] or ""
+                pkts = (row[4] or 0) + inc_packets
+                cur.execute("""
+                    UPDATE devices 
+                    SET room_key = ?, user_name = ?, app_version = ?, ip_address = ?, last_seen = ?, packets_count = ?
+                    WHERE device_id = ?
+                """, (room_key, name, ver, ip, now_str, pkts, device_id))
+            else:
+                cur.execute("""
+                    INSERT INTO devices (device_id, room_key, user_name, app_version, ip_address, first_seen, last_seen, packets_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (device_id, room_key, user_name or "Пользователь", app_version or "unknown", ip_address or "", now_str, now_str, inc_packets))
+            conn.commit()
+    except Exception as e:
+        logging.warning(f"Ошибка обновления статистики устройства {device_id}: {e}")
 
 
 def authorize_device(room_key: str, device_id: str) -> bool:
     if not room_key or not device_id:
         return False
 
-    with sqlite3.connect(DB_FILE) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT device_id FROM room_devices WHERE room_key = ?", (room_key,))
-        devices = [row[0] for row in cur.fetchall()]
+    try:
+        with sqlite3.connect(DB_FILE, timeout=10.0) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT device_id FROM room_devices WHERE room_key = ?", (room_key,))
+            devices = [row[0] for row in cur.fetchall()]
 
-        if device_id in devices:
+            if device_id in devices:
+                return True
+
+            if len(devices) < 2:
+                cur.execute("INSERT OR IGNORE INTO room_devices (room_key, device_id) VALUES (?, ?)", (room_key, device_id))
+                conn.commit()
+                logging.info(f"Устройство {device_id} привязано к комнате '{room_key}' (устройств: {len(devices) + 1}/2)")
+                return True
+
+            return False
+    except Exception as e:
+        logging.error(f"Ошибка БД при авторизации устройства {device_id}: {e}")
+        # Защита от сбоя БД: проверяем в оперативной памяти активной комнаты
+        active_in_mem = list(ROOM_CLIENTS.get(room_key, {}).keys())
+        if device_id in active_in_mem or len(active_in_mem) < 2:
             return True
-
-        if len(devices) < 2:
-            cur.execute("INSERT OR IGNORE INTO room_devices (room_key, device_id) VALUES (?, ?)", (room_key, device_id))
-            conn.commit()
-            logging.info(f"Устройство {device_id} привязано к комнате '{room_key}' (устройств: {len(devices) + 1}/2)")
-            return True
-
         return False
 
 
 def get_room_devices(room_key: str):
-    with sqlite3.connect(DB_FILE) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT device_id FROM room_devices WHERE room_key = ?", (room_key,))
-        return [row[0] for row in cur.fetchall()]
+    try:
+        with sqlite3.connect(DB_FILE, timeout=10.0) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT device_id FROM room_devices WHERE room_key = ?", (room_key,))
+            return [row[0] for row in cur.fetchall()]
+    except Exception as e:
+        logging.error(f"Ошибка БД в get_room_devices: {e}")
+        return list(ROOM_CLIENTS.get(room_key, {}).keys())
 
 
 def save_offline_message(room_key: str, target_device_id: str, payload_str: str):
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute(
-            "INSERT INTO offline_messages (room_key, target_device_id, payload) VALUES (?, ?, ?)",
-            (room_key, target_device_id, payload_str)
-        )
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_FILE, timeout=10.0) as conn:
+            conn.execute(
+                "INSERT INTO offline_messages (room_key, target_device_id, payload) VALUES (?, ?, ?)",
+                (room_key, target_device_id, payload_str)
+            )
+            conn.commit()
+    except Exception as e:
+        logging.error(f"Ошибка БД в save_offline_message: {e}")
 
 
 def fetch_and_clear_offline_messages(room_key: str, device_id: str):
     messages = []
-    with sqlite3.connect(DB_FILE) as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, payload FROM offline_messages
-            WHERE room_key = ? AND (target_device_id = ? OR target_device_id IS NULL OR target_device_id = '')
-            ORDER BY id ASC
-        """, (room_key, device_id))
-        rows = cur.fetchall()
-        if rows:
-            ids = [r[0] for r in rows]
-            messages = [r[1] for r in rows]
-            cur.execute(f"DELETE FROM offline_messages WHERE id IN ({','.join(['?']*len(ids))})", ids)
-            conn.commit()
+    try:
+        with sqlite3.connect(DB_FILE, timeout=10.0) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, payload FROM offline_messages
+                WHERE room_key = ? AND (target_device_id = ? OR target_device_id IS NULL OR target_device_id = '')
+                ORDER BY id ASC
+            """, (room_key, device_id))
+            rows = cur.fetchall()
+            if rows:
+                ids = [r[0] for r in rows]
+                messages = [r[1] for r in rows]
+                cur.execute(f"DELETE FROM offline_messages WHERE id IN ({','.join(['?']*len(ids))})", ids)
+                conn.commit()
+    except Exception as e:
+        logging.error(f"Ошибка БД в fetch_and_clear_offline_messages: {e}")
     return messages
 
 
@@ -399,32 +426,53 @@ def get_stats_data():
     active_rooms = len(ROOM_CLIENTS)
 
     devices_list = []
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM devices ORDER BY last_seen DESC LIMIT 100")
-        for row in cur.fetchall():
-            d = dict(row)
-            room = d.get("room_key")
-            dev_id = d.get("device_id")
-            # Проверяем, онлайн ли устройство прямо сейчас
-            is_online = bool(room in ROOM_CLIENTS and dev_id in ROOM_CLIENTS[room])
-            d["is_online"] = is_online
-            if is_online:
-                info = ROOM_CLIENTS[room][dev_id]
-                d["online_sec"] = int(time.time() - info.get("since", time.time()))
-                d["current_ip"] = info.get("ip", d.get("ip_address"))
-            else:
-                d["online_sec"] = 0
-                d["current_ip"] = d.get("ip_address")
-            devices_list.append(d)
+    events = []
+    total_rooms = active_rooms
 
-        cur.execute("SELECT * FROM audit_events ORDER BY id DESC LIMIT 30")
-        events = [dict(r) for r in cur.fetchall()]
+    try:
+        with sqlite3.connect(DB_FILE, timeout=5.0) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM devices ORDER BY last_seen DESC LIMIT 100")
+            for row in cur.fetchall():
+                d = dict(row)
+                room = d.get("room_key")
+                dev_id = d.get("device_id")
+                # Проверяем, онлайн ли устройство прямо сейчас
+                is_online = bool(room in ROOM_CLIENTS and dev_id in ROOM_CLIENTS[room])
+                d["is_online"] = is_online
+                if is_online:
+                    info = ROOM_CLIENTS[room][dev_id]
+                    d["online_sec"] = int(time.time() - info.get("since", time.time()))
+                    d["current_ip"] = info.get("ip", d.get("ip_address"))
+                else:
+                    d["online_sec"] = 0
+                    d["current_ip"] = d.get("ip_address")
+                devices_list.append(d)
 
-        cur.execute("SELECT COUNT(DISTINCT room_key) FROM room_devices")
-        total_rooms_row = cur.fetchone()
-        total_rooms = total_rooms_row[0] if total_rooms_row else 0
+            cur.execute("SELECT * FROM audit_events ORDER BY id DESC LIMIT 30")
+            events = [dict(r) for r in cur.fetchall()]
+
+            cur.execute("SELECT COUNT(DISTINCT room_key) FROM room_devices")
+            total_rooms_row = cur.fetchone()
+            total_rooms = total_rooms_row[0] if total_rooms_row else active_rooms
+    except Exception as e:
+        logging.warning(f"Ошибка БД при сборке данных для дашборда: {e}")
+        # Если БД недоступна, генерируем список устройств напрямую из оперативной памяти
+        for r_key, devs in ROOM_CLIENTS.items():
+            for d_id, d_info in devs.items():
+                devices_list.append({
+                    "device_id": d_id,
+                    "room_key": r_key,
+                    "user_name": d_info.get("name", "Пользователь"),
+                    "app_version": d_info.get("version", "?"),
+                    "ip_address": d_info.get("ip", "-"),
+                    "current_ip": d_info.get("ip", "-"),
+                    "last_seen": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "packets_count": 0,
+                    "is_online": True,
+                    "online_sec": int(time.time() - d_info.get("since", time.time()))
+                })
 
     uptime_sec = int(time.time() - SERVER_START_TIME)
     uptime_str = f"{uptime_sec // 3600}ч {(uptime_sec % 3600) // 60}м"
@@ -754,8 +802,8 @@ async def handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Strea
             writer.write(header.encode("utf-8") + html_bytes)
             await writer.drain()
 
-    except Exception:
-        pass
+    except Exception as err:
+        logging.warning(f"Ошибка HTTP-клиента дашборда: {err}")
     finally:
         try:
             writer.close()
