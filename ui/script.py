@@ -472,49 +472,6 @@ function applyUpdateFromBanner(){
   applyUpdate();
 }
 
-function testUpdateBannerUI(){
-  _bannerDismissed = false;
-  const dummyRes = {
-    has_update: true,
-    is_simulation: true,
-    current_version: '1.2.10',
-    latest_version: '1.2.11',
-    download_url: 'https://github.com/Tipochec/together-v5/releases',
-    release_notes: '✨ Тестовый режим: доступна новая версия Together v1.2.11!\n• Проверка анимации и плашки вверху\n• Новый карточный дизайн чата\n• Нажмите "Обновить" или закройте плашку на крестик'
-  };
-  _updateInfo = dummyRes;
-
-  const titlebarBadge = document.getElementById('titlebar-version-badge');
-  const titlebarText = document.getElementById('titlebar-version-text');
-  const updateBanner = document.getElementById('update-banner');
-  const updateBannerVer = document.getElementById('update-banner-ver');
-  const statusEl = document.getElementById('update-status-text');
-  const actionBox = document.getElementById('update-action-box');
-  const notesEl = document.getElementById('update-notes');
-
-  if(titlebarBadge){
-    titlebarBadge.classList.remove('is-latest');
-    titlebarBadge.classList.add('has-update');
-    titlebarBadge.title = 'Доступно обновление Together v1.2.11! Нажмите для перехода к обновлению';
-  }
-  if(titlebarText){
-    titlebarText.textContent = 'v1.2.10 → v1.2.11 🚀';
-  }
-  if(updateBanner){
-    if(updateBannerVer) updateBannerVer.textContent = 'v1.2.11';
-    updateBanner.style.display = 'flex';
-  }
-  if(statusEl){
-    statusEl.innerHTML = '<span style="color:#6ee7b7;font-weight:600">Тестовый режим: доступна v1.2.11!</span>';
-  }
-  if(notesEl){
-    notesEl.textContent = dummyRes.release_notes;
-  }
-  if(actionBox){
-    actionBox.style.display = 'block';
-  }
-}
-
 function onTitlebarVersionClick(){
   if(_updateInfo && _updateInfo.has_update){
     const navBtns = document.querySelectorAll('.nav-btn');

@@ -36,3 +36,4 @@ out.txt
 *.wav
 Запустить_Тест.bat
 installer_output/
+*_gf.log

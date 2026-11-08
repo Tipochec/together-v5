@@ -7,6 +7,8 @@ winsound.PlaySound(path, SND_FILENAME | SND_ASYNC) — с нулевой зад�
 и с мгновенным прерыванием предыдущего звука при повторной отправке.
 """
 import os
+import threading
+import time
 import wave
 import array
 from core.paths import resource_path, data_path
@@ -25,6 +27,10 @@ _HEART_VOLUME = 80
 
 _VOL_CHAT_PATH = data_path("alarm_vol.wav")
 _VOL_HEART_PATH = data_path("heart_vol.wav")
+
+_sound_lock = threading.Lock()
+_last_chat_sound_time = 0.0
+_last_heart_sound_time = 0.0
 
 
 def _generate_scaled_wav(src_path: str, dst_path: str, volume_pct: int) -> bool:
@@ -54,6 +60,9 @@ def _generate_scaled_wav(src_path: str, dst_path: str, volume_pct: int) -> bool:
             ow.setparams(params)
             ow.writeframes(samples.tobytes())
         return True
+    except PermissionError:
+        # Файл занят текущим воспроизведением — используем существующий
+        return os.path.isfile(dst_path)
     except Exception as e:
         print(f"Error generating scaled wav for {src_path}: {e}")
         return False
@@ -90,8 +99,9 @@ def set_heart_volume(volume: int):
 def play_chat_sound(volume_pct: int = None):
     """
     Воспроизводит звук уведомления чата асинхронно без задержки.
-    Повторный вызов мгновенно перезапускает звук без очереди.
+    Имеет защитный кулдаун (350 мс), чтобы звуки не глушили друг друга при быстрой переписке.
     """
+    global _last_chat_sound_time
     if not _AVAILABLE:
         return
 
@@ -99,7 +109,13 @@ def play_chat_sound(volume_pct: int = None):
     if vol <= 0:
         return
 
-    # Если передан специфический volume (например, при тесте в микшере)
+    now = time.time()
+    with _sound_lock:
+        if now - _last_chat_sound_time < 0.35:
+            # Предотвращаем обрыв предыдущего звука
+            return
+        _last_chat_sound_time = now
+
     play_path = _VOL_CHAT_PATH
     if volume_pct is not None and volume_pct != _CHAT_VOLUME:
         temp_test_path = data_path("test_alarm.wav")
@@ -111,7 +127,8 @@ def play_chat_sound(volume_pct: int = None):
         play_path = _VOL_CHAT_PATH if os.path.isfile(_VOL_CHAT_PATH) else _ORIG_CHAT_PATH
 
     try:
-        winsound.PlaySound(play_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        flags = winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT
+        winsound.PlaySound(play_path, flags)
     except Exception as e:
         print(f"play_chat_sound error: {e}")
 

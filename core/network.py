@@ -153,6 +153,8 @@ class NetworkManager:
         self._last_server_packet = 0      # время последнего пакета от сервера
         self._last_idle_reconnect = time.time()  # время последнего watchdog-переподключения
         self._idle_reconnect_count = 0    # счётчик попыток watchdog-переподключения
+        self._outgoing_queue = []         # Очередь сообщений для гарантированной доставки
+        self._outgoing_lock = threading.Lock()
 
     def on_partner_update(self, cb): self._on_partner_update.append(cb)
     def on_status_change(self, cb):  self._on_status_change.append(cb)
@@ -416,6 +418,9 @@ class NetworkManager:
                 }
                 self._send_raw(sock, reg_packet)
 
+                # Высылаем все накопившиеся за время обрыва сообщения
+                self._trigger_flush_outgoing()
+
                 send_t = threading.Thread(target=self._send_loop, args=(sock,), daemon=True)
                 send_t.start()
                 self._recv_loop(sock, label=f"RELAY@{RELAY_HOST}")
@@ -473,6 +478,8 @@ class NetworkManager:
 
     def _send_loop(self, sock):
         while self._running:
+            # Если есть неотправленные сообщения — досылаем
+            self._flush_outgoing_queue()
             payload = self._build_payload()
             if not self._send_raw(sock, payload):
                 break
@@ -573,6 +580,39 @@ class NetworkManager:
             ],
         }
         
+    def _trigger_flush_outgoing(self):
+        """Запускает фоновую отправку накопившихся в очереди сообщений."""
+        threading.Thread(target=self._flush_outgoing_queue, daemon=True).start()
+
+    def _flush_outgoing_queue(self):
+        """Высылает все ожидающие сообщения из очереди в текущий рабочий сокет."""
+        sock = self._client_socket
+        if sock is None:
+            return
+
+        with self._outgoing_lock:
+            if not self._outgoing_queue:
+                return
+            to_send = list(self._outgoing_queue)
+
+        sent_uids = []
+        for packet in to_send:
+            cur_sock = self._client_socket
+            if cur_sock is None or cur_sock != sock:
+                break
+            success = self._send_raw(cur_sock, packet)
+            if success:
+                sent_uids.append(packet.get("msg_uid"))
+                self._msgs_sent += 1
+                _log(f"MSG: сообщение успешно передано серверу (uid={packet.get('msg_uid', '')[:8]}...)")
+            else:
+                # Ошибка отправки — сокет закрылся, оставшиеся сообщ. уйдут после переподключения
+                break
+
+        if sent_uids:
+            with self._outgoing_lock:
+                self._outgoing_queue = [p for p in self._outgoing_queue if p.get("msg_uid") not in sent_uids]
+
     def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None):
         text = (text or "").strip()
 
@@ -607,15 +647,11 @@ class NetworkManager:
             reply_text=packet["reply_text"],
         )
 
-        sock = self._client_socket
-        if sock:
-            self._msgs_sent += 1
-            _log(f"MSG: отправлено сообщение в сеть ({len(packet['text'])} симв., uid={msg_uid[:8]}...)")
-            threading.Thread(
-                target=self._send_raw, args=(sock, packet), daemon=True
-            ).start()
-        else:
-            _log("MSG: нет связи с сервером — сохранено только в локальную базу")
+        with self._outgoing_lock:
+            self._outgoing_queue.append(packet)
+            _log(f"MSG: сообщение добавлено в очередь отправки ({len(packet['text'])} симв., uid={msg_uid[:8]}..., в очереди: {len(self._outgoing_queue)})")
+
+        self._trigger_flush_outgoing()
 
     def send_heart(self):
         """Отправляет сигнал сердечка ('думаю о тебе') партнёру с защитой от спама (кд 1.2 сек)"""
@@ -748,7 +784,7 @@ class NetworkManager:
         self._msgs_received += 1
         text = data.get("text", "")[:1000]
         _log(f"MSG: получено сообщение от {data.get('sender') or 'Партнёр'} ({len(text)} симв.)")
-        self.chat.add_message(
+        added = self.chat.add_message(
             sender=data.get("sender") or "Партнёр",
             text=text,
             incoming=True,
@@ -757,6 +793,9 @@ class NetworkManager:
             reply_sender=data.get("reply_sender"),
             reply_text=(data.get("reply_text") or "")[:300] or None,
         )
+        if added is None:
+            _log(f"MSG: дубликат сообщения (uid={data.get('msg_uid', '')[:8]}...) пропущен")
+            return
 
         for cb in self._on_message:
             try:

@@ -61,6 +61,11 @@ class ChatManager:
         msg_uid = msg_uid or uuid.uuid4().hex
         with self._lock:
             with self._connect() as conn:
+                if msg_uid:
+                    cur = conn.cursor()
+                    cur.execute("SELECT 1 FROM messages WHERE msg_uid = ?", (msg_uid,))
+                    if cur.fetchone():
+                        return None  # Уже существует — дубликат
                 conn.execute("""
                     INSERT INTO messages
                     (sender, text, created_at, incoming, msg_uid,
