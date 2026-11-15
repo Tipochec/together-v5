@@ -1,7 +1,34 @@
 JS = r"""
-async function loadChat() {
+let _stickersCache = null;
+async function getStickersMap() {
+    if (_stickersCache) return _stickersCache;
+    try {
+        if (window.pywebview && pywebview.api && pywebview.api.get_stickers) {
+            _stickersCache = await pywebview.api.get_stickers();
+        }
+    } catch(e) {
+        console.error("getStickersMap error:", e);
+        _stickersCache = {};
+    }
+    return _stickersCache || {};
+}
 
-    const messages = await pywebview.api.get_chat_history();
+async function loadChat() {
+    let stickersMap = {};
+    try {
+        stickersMap = await getStickersMap();
+    } catch(e) {
+        console.error("getStickersMap failed:", e);
+    }
+
+    let messages = [];
+    try {
+        if (window.pywebview && pywebview.api && pywebview.api.get_chat_history) {
+            messages = await pywebview.api.get_chat_history();
+        }
+    } catch(e) {
+        console.error("get_chat_history failed:", e);
+    }
 
     const chat = document.getElementById("chat-list");
 
@@ -33,10 +60,7 @@ async function loadChat() {
             div.appendChild(sender);
         }
 
-        // Цитата сообщения, на которое ответили — текст цитаты хранится
-        // прямо в этом сообщении (reply_text/reply_sender), а не
-        // подгружается по ссылке на оригинал, поэтому показывается даже
-        // если у партнёра то исходное сообщение уже удалено/недоступно.
+        // Цитата сообщения, на которое ответили
         if (msg.reply_text) {
             const quote = document.createElement("div");
             quote.className = "reply-quote";
@@ -51,13 +75,42 @@ async function loadChat() {
             div.appendChild(quote);
         }
 
-        const body = document.createElement("div");
-        body.className = "msg-text";
-        body.textContent = msg.text;
-        if (isOnlyEmojis(msg.text)) {
-            body.classList.add("big-emoji");
+        // Стикер (котик)
+        if (msg.sticker) {
+            div.classList.add("has-sticker");
+            if (!msg.text) {
+                div.classList.add("sticker-only");
+            }
+            const stickerBox = document.createElement("div");
+            stickerBox.className = "msg-sticker-container";
+            const img = document.createElement("img");
+            img.className = "msg-sticker-img";
+            let src = msg.sticker;
+            if (stickersMap && stickersMap[msg.sticker]) {
+                src = stickersMap[msg.sticker];
+            }
+            img.src = src;
+            img.alt = "Котик";
+            img.title = "Котик 🐾 (нажми на меня!)";
+            img.draggable = false;
+            img.onclick = (e) => {
+                e.stopPropagation();
+                img.style.transform = "scale(1.18) rotate(4deg)";
+                setTimeout(() => { img.style.transform = ""; }, 220);
+            };
+            stickerBox.appendChild(img);
+            div.appendChild(stickerBox);
         }
-        div.appendChild(body);
+
+        if (msg.text) {
+            const body = document.createElement("div");
+            body.className = "msg-text";
+            body.textContent = msg.text;
+            if (isOnlyEmojis(msg.text) && !msg.sticker) {
+                body.classList.add("big-emoji");
+            }
+            div.appendChild(body);
+        }
 
         const footer = document.createElement("div");
         footer.className = "msg-footer";
@@ -90,7 +143,7 @@ async function loadChat() {
         copyBtn.textContent = "📋";
         copyBtn.onclick = (e) => {
             e.stopPropagation();
-            copyMessageText(msg.text, copyBtn);
+            copyMessageText(msg.text || (msg.sticker ? "🐾 Стикер Котик" : ""), copyBtn);
         };
         actions.appendChild(copyBtn);
 
@@ -107,13 +160,49 @@ function startReply(msg) {
     window._replyingTo = {
         msg_uid: msg.msg_uid || null,
         sender: msg.incoming ? (msg.sender || "Партнёр") : "Вы",
-        text: msg.text,
+        text: msg.text || (msg.sticker ? "🐾 Стикер Котик" : ""),
     };
     document.getElementById("reply-preview-sender").textContent = window._replyingTo.sender;
     document.getElementById("reply-preview-text").textContent = window._replyingTo.text;
     document.getElementById("reply-preview").style.display = "flex";
     const input = document.getElementById("message");
     if (input) input.focus();
+}
+
+async function sendCatSticker(btnEl) {
+    if (btnEl) {
+        btnEl.style.transform = "scale(0.88)";
+        setTimeout(() => { btnEl.style.transform = ""; }, 180);
+    }
+    const picker = document.getElementById("emoji-picker");
+    if (picker) picker.style.display = "none";
+
+    const input = document.getElementById("message");
+    const text = input ? input.value.trim().slice(0, 500) : "";
+    const replying = window._replyingTo || null;
+
+    if (input) {
+        input.value = "";
+        autoResizeMessageBox();
+        updateCharCounter();
+        input.focus();
+    }
+    cancelReply();
+
+    try {
+        if (window.pywebview && pywebview.api && pywebview.api.send_message) {
+            await pywebview.api.send_message(
+                text,
+                replying ? replying.msg_uid : null,
+                replying ? replying.sender : null,
+                replying ? replying.text : null,
+                "cat"
+            );
+        }
+        await loadChat();
+    } catch(e) {
+        console.error("sendCatSticker error:", e);
+    }
 }
 
 function cancelReply() {
@@ -187,6 +276,12 @@ async function sendMessage() {
 function autoResizeMessageBox() {
     const input = document.getElementById("message");
     if (!input) return;
+    if (!input.value) {
+        input.style.height = "38px";
+        input.style.overflowY = "hidden";
+        input.classList.remove("has-scroll");
+        return;
+    }
     input.style.height = "auto";
     const scrollH = input.scrollHeight;
     if (scrollH > 110) {
@@ -208,6 +303,7 @@ function updateCharCounter() {
     if (len >= 350) {
         counter.textContent = `${len}/500`;
         counter.style.display = "block";
+        input.style.paddingRight = "48px";
         if (len >= 500) {
             counter.className = "char-counter limit";
         } else if (len >= 450) {
@@ -217,6 +313,7 @@ function updateCharCounter() {
         }
     } else {
         counter.style.display = "none";
+        input.style.paddingRight = "12px";
     }
 }
 
@@ -294,7 +391,74 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
-function toggleEmojiPicker() {
+const DEFAULT_RECENTS = ["❤️", "✨", "🥰", "😊", "😂", "🥺", "🔥", "😘"];
+let _recentItems = [...DEFAULT_RECENTS];
+let _recentLoadedFromBackend = false;
+
+async function loadRecentFromBackend() {
+    if (_recentLoadedFromBackend) return _recentItems;
+    try {
+        if (window.pywebview && pywebview.api && pywebview.api.get_recent_emojis) {
+            const res = await pywebview.api.get_recent_emojis();
+            if (Array.isArray(res) && res.length > 0) {
+                _recentItems = res.filter(x => x && x !== "cat").slice(0, 16);
+                _recentLoadedFromBackend = true;
+            }
+        }
+    } catch(e) {}
+    _recentItems = _recentItems.filter(x => x && x !== "cat");
+    return _recentItems;
+}
+
+function recordRecentItem(item) {
+    if (!item || item === "cat") return;
+    try {
+        _recentItems = [item, ..._recentItems.filter(x => x !== item && x !== "cat")].slice(0, 16);
+        renderRecentEmojis();
+        if (window.pywebview && pywebview.api && pywebview.api.save_recent_emojis) {
+            pywebview.api.save_recent_emojis(_recentItems).catch(() => {});
+        }
+    } catch(e) {
+        console.error("recordRecentItem error:", e);
+    }
+}
+
+function renderRecentEmojis() {
+    const rGrid = document.getElementById("recent-emoji-grid");
+    if (!rGrid) return;
+    rGrid.innerHTML = "";
+    for (const item of _recentItems) {
+        if (!item || item === "cat") continue;
+        const el = document.createElement("span");
+        el.className = "emoji-item";
+        el.textContent = item;
+        el.onclick = () => insertEmoji(item);
+        rGrid.appendChild(el);
+    }
+}
+
+async function renderStickersPicker() {
+    const sGrid = document.getElementById("stickers-grid");
+    if (!sGrid) return;
+    sGrid.innerHTML = "";
+    const stickersMap = await getStickersMap();
+    if (stickersMap && stickersMap["cat"]) {
+        const item = document.createElement("div");
+        item.className = "sticker-item";
+        item.title = "Отправить котика 🐾";
+        const img = document.createElement("img");
+        img.src = stickersMap["cat"];
+        img.alt = "Котик";
+        item.appendChild(img);
+        item.onclick = (e) => {
+            e.stopPropagation();
+            sendCatSticker(item);
+        };
+        sGrid.appendChild(item);
+    }
+}
+
+async function toggleEmojiPicker() {
     const panel = document.getElementById("emoji-picker");
     if (!panel) return;
 
@@ -302,6 +466,11 @@ function toggleEmojiPicker() {
         panel.style.display = "none";
         return;
     }
+
+    // Загружаем сохранённые из бэкенда и обновляем стикеры и часто используемые
+    await loadRecentFromBackend();
+    await renderStickersPicker();
+    await renderRecentEmojis();
 
     if (!_emojiPickerFilled) {
         const grid = document.getElementById("emoji-grid");
@@ -332,6 +501,7 @@ function toggleEmojiPicker() {
 }
 
 function insertEmoji(emoji) {
+    recordRecentItem(emoji);
     const input = document.getElementById("message");
     if (input) {
         const start = input.selectionStart ?? input.value.length;
@@ -383,6 +553,7 @@ async function confirmClearChat() {
 
 window.addEventListener("pywebviewready", () => {
     loadChat();
+    loadRecentFromBackend();
     const input = document.getElementById("message");
     if (input) {
         autoResizeMessageBox();

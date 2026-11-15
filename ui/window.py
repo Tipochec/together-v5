@@ -386,10 +386,29 @@ class WindowAPI:
             except Exception:
                 pass
             
-    def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None):
-        _network.send_message(text, reply_to_uid=reply_to_uid,
-                               reply_sender=reply_sender, reply_text=reply_text)
-        return True
+    def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None, sticker=None):
+        if _network:
+            try:
+                _network.send_message(text, reply_to_uid=reply_to_uid,
+                                       reply_sender=reply_sender, reply_text=reply_text, sticker=sticker)
+                return True
+            except Exception as e:
+                from core.logger import log_error
+                log_error(f"WindowAPI.send_message failed: {e}")
+                return False
+        return False
+
+    def get_stickers(self):
+        from core.stickers import get_all_stickers
+        return get_all_stickers()
+
+    def get_recent_emojis(self):
+        from core.chat import get_recent_emojis
+        return get_recent_emojis()
+
+    def save_recent_emojis(self, emojis):
+        from core.chat import save_recent_emojis
+        return save_recent_emojis(emojis)
 
     def toggle_autostart(self):
         from core.autostart import setup_autostart, is_autostart_enabled

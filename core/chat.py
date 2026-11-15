@@ -57,7 +57,8 @@ class ChatManager:
             conn.commit()
 
     def add_message(self, sender, text, incoming, msg_uid=None,
-                     reply_to_uid=None, reply_sender=None, reply_text=None):
+                     reply_to_uid=None, reply_sender=None, reply_text=None,
+                     sticker=None):
         msg_uid = msg_uid or uuid.uuid4().hex
         with self._lock:
             with self._connect() as conn:
@@ -69,8 +70,8 @@ class ChatManager:
                 conn.execute("""
                     INSERT INTO messages
                     (sender, text, created_at, incoming, msg_uid,
-                     reply_to_uid, reply_sender, reply_text)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     reply_to_uid, reply_sender, reply_text, sticker)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     sender,
                     text,
@@ -80,6 +81,7 @@ class ChatManager:
                     reply_to_uid,
                     reply_sender,
                     reply_text,
+                    sticker,
                 ))
                 conn.commit()
         return msg_uid
@@ -88,7 +90,7 @@ class ChatManager:
         with self._connect() as conn:
             rows = conn.execute("""
                 SELECT sender, text, created_at, incoming, msg_uid,
-                       reply_to_uid, reply_sender, reply_text
+                       reply_to_uid, reply_sender, reply_text, sticker
                 FROM messages
                 ORDER BY id DESC
                 LIMIT ?
@@ -106,6 +108,7 @@ class ChatManager:
                 "reply_to_uid": r[5],
                 "reply_sender": r[6],
                 "reply_text": r[7],
+                "sticker": r[8],
             }
             for r in rows
         ]
@@ -126,3 +129,31 @@ class ChatManager:
 
     def get_last_messages(self, limit=50):
         return self.get_messages(limit)
+
+
+def get_recent_emojis():
+    try:
+        from core.tracker import load_settings
+        s = load_settings()
+        recents = s.get("recent_emojis")
+        if isinstance(recents, list) and recents:
+            cleaned = [e for e in recents if e != "cat"]
+            if cleaned:
+                return cleaned
+    except Exception:
+        pass
+    return ["❤️", "✨", "🥰", "😊", "😂", "🥺", "🔥", "😘"]
+
+
+def save_recent_emojis(emojis):
+    try:
+        import json
+        from core.tracker import load_settings, _settings_path
+        s = load_settings()
+        cleaned = [e for e in emojis if e != "cat"]
+        s["recent_emojis"] = list(cleaned)[:24]
+        with open(_settings_path(), "w", encoding="utf-8") as f:
+            json.dump(s, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False

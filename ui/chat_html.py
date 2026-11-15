@@ -32,8 +32,22 @@ HTML = r"""
 </div>
 
 <div id="emoji-picker" class="emoji-picker" style="display:none">
+  <div class="picker-section-title">Стикеры</div>
+  <div class="stickers-grid" id="stickers-grid"></div>
+
+  <div class="picker-divider"></div>
+
+  <div class="picker-section-title">Часто используемые</div>
+  <div class="emoji-grid" id="recent-emoji-grid"></div>
+
+  <div class="picker-divider"></div>
+
+  <div class="picker-section-title">Все смайлики</div>
   <div class="emoji-grid" id="emoji-grid"></div>
-  <div class="kaomoji-header">Каомодзи</div>
+
+  <div class="picker-divider"></div>
+
+  <div class="picker-section-title">Каомодзи</div>
   <div class="kaomoji-grid" id="kaomoji-grid"></div>
 </div>
 
@@ -52,7 +66,7 @@ HTML = r"""
       id="message"
       rows="1"
       maxlength="500"
-      placeholder="Напишите сообщение..."></textarea>
+      placeholder="Сообщение..."></textarea>
     <div id="char-counter" class="char-counter" style="display:none">0/500</div>
   </div>
 
@@ -60,7 +74,7 @@ HTML = r"""
     class="dock-btn emoji-btn"
     id="emoji-toggle-btn"
     onclick="toggleEmojiPicker()"
-    title="Смайлики">
+    title="Смайлики и стикеры">
     🙂
   </button>
 

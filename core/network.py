@@ -613,10 +613,10 @@ class NetworkManager:
             with self._outgoing_lock:
                 self._outgoing_queue = [p for p in self._outgoing_queue if p.get("msg_uid") not in sent_uids]
 
-    def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None):
+    def send_message(self, text, reply_to_uid=None, reply_sender=None, reply_text=None, sticker=None):
         text = (text or "").strip()
 
-        if not text:
+        if not text and not sticker:
             return
 
         settings = load_settings()
@@ -634,6 +634,7 @@ class NetworkManager:
             "reply_to_uid": reply_to_uid,
             "reply_sender": reply_sender,
             "reply_text": (reply_text or "")[:300] or None,
+            "sticker": sticker,
         }
 
         # Сохраняем локально сразу — мгновенный отклик в UI
@@ -645,6 +646,7 @@ class NetworkManager:
             reply_to_uid=reply_to_uid,
             reply_sender=reply_sender,
             reply_text=packet["reply_text"],
+            sticker=sticker,
         )
 
         with self._outgoing_lock:
@@ -783,7 +785,8 @@ class NetworkManager:
 
         self._msgs_received += 1
         text = data.get("text", "")[:1000]
-        _log(f"MSG: получено сообщение от {data.get('sender') or 'Партнёр'} ({len(text)} симв.)")
+        sticker = data.get("sticker")
+        _log(f"MSG: получено сообщение от {data.get('sender') or 'Партнёр'} ({len(text)} симв., sticker={sticker})")
         added = self.chat.add_message(
             sender=data.get("sender") or "Партнёр",
             text=text,
@@ -792,6 +795,7 @@ class NetworkManager:
             reply_to_uid=data.get("reply_to_uid"),
             reply_sender=data.get("reply_sender"),
             reply_text=(data.get("reply_text") or "")[:300] or None,
+            sticker=sticker,
         )
         if added is None:
             _log(f"MSG: дубликат сообщения (uid={data.get('msg_uid', '')[:8]}...) пропущен")

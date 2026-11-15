@@ -375,8 +375,8 @@ body{
     border-top:1px solid rgba(255,255,255,0.07);
     display:flex;
     align-items:flex-end;
-    gap:8px;
-    padding:9px 12px;
+    gap:6px;
+    padding:9px 10px;
     position:relative;
     -webkit-app-region:no-drag;
 }
@@ -395,7 +395,7 @@ body{
     border:1px solid rgba(255,255,255,0.08);
     outline:none;
     border-radius:12px;
-    padding:8px 48px 8px 12px;
+    padding:8px 12px;
     color:#fff;
     font-family:inherit;
     font-size:13px;
@@ -479,7 +479,7 @@ body{
 }
 
 .dock-btn, .send{
-    width:38px;
+    width:36px;
     height:36px;
     flex-shrink:0;
     border:1px solid rgba(255,255,255,0.08);
@@ -516,13 +516,76 @@ body{
     font-size:16px;
 }
 
+.dock-btn.sticker-btn{
+    background:#1a1820;
+    font-size:17px;
+    border-radius:11px;
+    transition:all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dock-btn.sticker-btn:hover{
+    background:linear-gradient(135deg, rgba(212,83,126,0.25), rgba(108,92,231,0.25));
+    border-color:rgba(212,83,126,0.4);
+    transform:translateY(-2px) scale(1.08);
+    box-shadow:0 4px 14px rgba(212,83,126,0.3);
+}
+
+.dock-btn.sticker-btn:active{
+    transform:scale(0.92);
+}
+
+/* ── Стикеры в чате ──────────────────────────────────────────────────── */
+.msg-sticker-container{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:2px 0;
+    margin:2px 0;
+}
+
+.msg-sticker-img{
+    max-width:140px;
+    max-height:140px;
+    width:auto;
+    height:auto;
+    border-radius:12px;
+    display:block;
+    object-fit:cover;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35);
+    transition:transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-drag:none;
+}
+
+.msg-sticker-img:hover{
+    transform:scale(1.06) rotate(-2deg);
+}
+
+.message.has-sticker{
+    padding:6px 8px 6px 8px;
+    max-width:200px;
+}
+
+.message.has-sticker.sticker-only{
+    background:rgba(26,24,32,0.7);
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 4px 16px rgba(0,0,0,0.25);
+}
+
+.message.me.has-sticker.sticker-only{
+    background:rgba(83,74,183,0.32);
+    border:1px solid rgba(108,92,231,0.25);
+    box-shadow:0 4px 16px rgba(108,92,231,0.2);
+}
+
 /* ── Панель эмодзи / каомодзи ────────────────────────────────────────── */
 .emoji-picker{
     position:fixed;
     left:10px;
     right:10px;
     bottom:64px;
-    max-height:270px;
+    max-height:310px;
     background:rgba(26,24,32,0.96);
     backdrop-filter:blur(16px);
     border:1px solid rgba(255,255,255,0.12);
@@ -541,6 +604,63 @@ body{
 }
 .emoji-picker::-webkit-scrollbar-thumb:hover{
     background:rgba(255,255,255,0.25);
+}
+
+.picker-section-title{
+    font-size:10.5px;
+    font-weight:600;
+    color:rgba(255,255,255,0.42);
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    padding:6px 4px 4px 4px;
+    user-select:none;
+}
+
+.picker-divider{
+    height:1px;
+    background:rgba(255,255,255,0.08);
+    margin:6px 2px;
+}
+
+.stickers-grid{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:2px 4px 4px 4px;
+}
+
+.sticker-item{
+    width:50px;
+    height:50px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    padding:3px;
+    box-sizing:border-box;
+    transition:all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sticker-item:hover{
+    background:linear-gradient(135deg, rgba(212,83,126,0.25), rgba(108,92,231,0.25));
+    border-color:rgba(212,83,126,0.5);
+    transform:scale(1.1) translateY(-2px);
+    box-shadow:0 6px 16px rgba(212,83,126,0.3);
+}
+
+.sticker-item:active{
+    transform:scale(0.94);
+}
+
+.sticker-item img{
+    max-width:100%;
+    max-height:100%;
+    border-radius:8px;
+    object-fit:cover;
+    pointer-events:none;
 }
 
 .emoji-grid{
@@ -563,6 +683,16 @@ body{
 .emoji-item:hover{
     background:rgba(255,255,255,0.12);
     transform:scale(1.18);
+}
+.emoji-item.sticker-recent-item{
+    padding:3px 0;
+}
+.recent-sticker-img{
+    width:24px;
+    height:24px;
+    border-radius:6px;
+    object-fit:cover;
+    pointer-events:none;
 }
 
 .kaomoji-header{
