@@ -7,11 +7,24 @@ from core.paths import data_path
 from core.version import APP_VERSION
 from datetime import datetime
 
-RELAY_HOST = "195.19.213.70"
+DEFAULT_RELAY_HOST = "45.83.25.146"
+RELAY_HOST = DEFAULT_RELAY_HOST
 RELAY_PORT = 39722
 RECONNECT_DELAY = 3
 OFFLINE_TIMEOUT = 10    # секунд без пакета от партнёра — подозрение на оффлайн
 RECONNECT_GRACE = 15    # секунд ждём подтверждения оффлайна
+
+def get_relay_host():
+    """Возвращает адрес VPS relay-сервера. По умолчанию DEFAULT_RELAY_HOST,
+    но можно переопределить через settings.json (ключ relay_host)."""
+    try:
+        from core.tracker import load_settings
+        val = load_settings().get("relay_host")
+        if val and str(val).strip():
+            return str(val).strip()
+    except Exception:
+        pass
+    return DEFAULT_RELAY_HOST
 
 LOG_PATH = data_path("network_debug.log")
 HEALTH_LOG_INTERVAL = 300  # раз в 5 минут пишем в лог "всё ок" / текущий статус
@@ -391,21 +404,22 @@ class NetworkManager:
                 # Без pairing_key сервер не знает, с кем нас спаривать
                 time.sleep(3)
                 continue
+            current_host = get_relay_host()
             sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(5.0)
-                sock.connect((RELAY_HOST, RELAY_PORT))
+                sock.connect((current_host, RELAY_PORT))
                 _enable_keepalive(sock)
                 sock.settimeout(10.0)
                 self._client_socket = sock
                 self._client_connected_at = time.time()
                 self._last_server_packet = time.time()
                 if self._connect_failures:
-                    _log(f"RELAY: снова подключились к серверу {RELAY_HOST}:{RELAY_PORT} "
+                    _log(f"RELAY: снова подключились к серверу {current_host}:{RELAY_PORT} "
                          f"(после {self._connect_failures} неудачных попыток)")
                 else:
-                    _log(f"RELAY: подключились к серверу {RELAY_HOST}:{RELAY_PORT}")
+                    _log(f"RELAY: подключились к серверу {current_host}:{RELAY_PORT}")
                 self._connect_failures = 0
 
                 # Сразу отправляем регистрацию устройства в комнату
@@ -423,12 +437,12 @@ class NetworkManager:
 
                 send_t = threading.Thread(target=self._send_loop, args=(sock,), daemon=True)
                 send_t.start()
-                self._recv_loop(sock, label=f"RELAY@{RELAY_HOST}")
+                self._recv_loop(sock, label=f"RELAY@{current_host}")
             except Exception as e:
                 self._connect_failures += 1
                 _log_throttled(
                     "client_connect_fail",
-                    f"RELAY: не удаётся подключиться к {RELAY_HOST}:{RELAY_PORT} — "
+                    f"RELAY: не удаётся подключиться к {current_host}:{RELAY_PORT} — "
                     f"{type(e).__name__}: {e} (попыток подряд: {self._connect_failures})"
                 )
             finally:
