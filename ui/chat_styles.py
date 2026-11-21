@@ -365,34 +365,38 @@ body{
     color:#fff;
 }
 
+#messages-body{
+    display:contents;
+}
+
 /* ── Индикатор набора текста (3 прыгающие точки) ─────────────────────── */
 .typing-bubble{
     align-self:flex-start;
-    margin:0 0 6px 14px;
-    padding:7px 14px;
-    background:rgba(28,25,36,0.95);
+    margin-right:auto;
+    padding:11px 18px;
+    background:#1a1820;
     border:1px solid rgba(255,255,255,0.09);
-    border-radius:14px 14px 14px 4px;
-    box-shadow:0 4px 14px rgba(0,0,0,0.35);
+    border-radius:16px 16px 16px 4px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);
     display:inline-flex;
     align-items:center;
-    gap:4px;
+    gap:6px;
     width:fit-content;
     animation:fadeInBubble 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index:15;
+    z-index:5;
     flex-shrink:0;
 }
 
 .typing-dots{
     display:flex;
     align-items:center;
-    gap:4px;
-    height:12px;
+    gap:6px;
+    height:14px;
 }
 
 .typing-dots span{
-    width:6px;
-    height:6px;
+    width:7px;
+    height:7px;
     background:#a29bfe;
     border-radius:50%;
     display:inline-block;
@@ -405,15 +409,15 @@ body{
 
 @keyframes jumpingDots{
     0%, 80%, 100%{
-        transform:scale(0.65) translateY(0);
+        transform:scale(0.7) translateY(0);
         opacity:0.35;
         background:#a29bfe;
     }
     40%{
-        transform:scale(1.18) translateY(-4px);
+        transform:scale(1.2) translateY(-4px);
         opacity:1;
         background:#fd79a8;
-        box-shadow:0 0 6px rgba(253,121,168,0.6);
+        box-shadow:0 0 8px rgba(253,121,168,0.6);
     }
 }
 

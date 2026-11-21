@@ -13,6 +13,16 @@ async function getStickersMap() {
     return _stickersCache || {};
 }
 
+function scrollToBottom(smooth = false) {
+    const chat = document.getElementById("chat-list");
+    if (!chat) return;
+    if (smooth) {
+        chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+    } else {
+        chat.scrollTop = chat.scrollHeight;
+    }
+}
+
 async function loadChat() {
     let stickersMap = {};
     try {
@@ -31,18 +41,19 @@ async function loadChat() {
     }
 
     const chat = document.getElementById("chat-list");
-    onPartnerTyping(false);
+    const container = document.getElementById("messages-body") || chat;
 
-    chat.innerHTML = "";
+    container.innerHTML = "";
 
     if (!messages || messages.length === 0) {
-        chat.innerHTML = `
+        container.innerHTML = `
             <div class="empty-chat">
                 <div class="empty-chat-icon">💌</div>
                 <div class="empty-chat-title">Здесь пока тихо</div>
                 <div class="empty-chat-desc">Напишите партнёру тёплое сообщение!</div>
             </div>
         `;
+        scrollToBottom();
         return;
     }
 
@@ -150,10 +161,14 @@ async function loadChat() {
 
         div.appendChild(actions);
 
-        chat.appendChild(div);
+        container.appendChild(div);
     }
 
-    chat.scrollTop = chat.scrollHeight;
+    const bubble = document.getElementById("typing-bubble");
+    if (bubble) {
+        bubble.style.display = _partnerIsTyping ? "inline-flex" : "none";
+    }
+    scrollToBottom();
 }
 
 // ── Ответ на конкретное сообщение ─────────────────────────────────────
@@ -603,21 +618,25 @@ function handleUserTyping() {
 }
 
 let _partnerTypingTimer = null;
+let _partnerIsTyping = false;
 
 function onPartnerTyping(isTyping) {
+    _partnerIsTyping = !!isTyping;
     const bubble = document.getElementById("typing-bubble");
-    if (!bubble) return;
 
     if (_partnerTypingTimer) {
         clearTimeout(_partnerTypingTimer);
         _partnerTypingTimer = null;
     }
 
+    if (!bubble) return;
+
     if (isTyping) {
         bubble.style.display = "inline-flex";
-        scrollToBottom();
+        scrollToBottom(true);
         // Автоматически скрываем через 5 секунд, если новый сигнал не пришел
         _partnerTypingTimer = setTimeout(() => {
+            _partnerIsTyping = false;
             bubble.style.display = "none";
         }, 5000);
     } else {

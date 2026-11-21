@@ -559,10 +559,10 @@ def run_webview_loop(tracker, network, stats=None):
     )
 
     def _on_incoming_message(data):
-        # Если открыто окно чата — перерисовываем список сообщений
+        # Если открыто окно чата — сбрасываем индикатор набора партнёра и перерисовываем
         if _chat_window:
             try:
-                _chat_window.evaluate_js("loadChat();")
+                _chat_window.evaluate_js("onPartnerTyping(false); loadChat();")
             except Exception:
                 pass
         else:

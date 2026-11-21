@@ -28,7 +28,14 @@ HTML = r"""
 </div>
 
 <div id="chat-list" class="messages">
-
+  <div id="messages-body"></div>
+  <div id="typing-bubble" class="typing-bubble" style="display:none">
+    <div class="typing-dots">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
 </div>
 
 <div id="emoji-picker" class="emoji-picker" style="display:none">
@@ -49,14 +56,6 @@ HTML = r"""
 
   <div class="picker-section-title">Каомодзи</div>
   <div class="kaomoji-grid" id="kaomoji-grid"></div>
-</div>
-
-<div id="typing-bubble" class="typing-bubble" style="display:none">
-  <div class="typing-dots">
-    <span></span>
-    <span></span>
-    <span></span>
-  </div>
 </div>
 
 <div id="reply-preview" class="reply-preview" style="display:none">
