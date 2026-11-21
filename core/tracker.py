@@ -11,6 +11,8 @@ import ctypes
 import ctypes.wintypes
 import os
 import json
+import re
+import difflib
 from datetime import datetime
 from collections import deque
 
@@ -107,6 +109,30 @@ def load_settings():
     return settings
 
 
+def is_same_window(app1, title1, app2, title2):
+    """Определяет, относятся ли два состояния к одному и тому же окну/вкладке,
+    сглаживая динамические бейджи (уведомления, значки плеера, мелкие различия)."""
+    if not app1 or not app2:
+        return app1 == app2 and (title1 or "") == (title2 or "")
+    if app1 != app2:
+        return False
+    t1 = (title1 or "").strip().lower()
+    t2 = (title2 or "").strip().lower()
+    if t1 == t2:
+        return True
+    if not t1 or not t2:
+        return False
+    # Если один заголовок начинается с другого и разница небольшая (до 15 символов)
+    if t1.startswith(t2) or t2.startswith(t1):
+        if abs(len(t1) - len(t2)) <= 15:
+            return True
+    # Нечёткое сравнение строк при близкой длине
+    if abs(len(t1) - len(t2)) <= 8 and len(t1) >= 4 and len(t2) >= 4:
+        if difflib.SequenceMatcher(None, t1, t2).ratio() >= 0.85:
+            return True
+    return False
+
+
 class ActivityTracker:
     def __init__(self):
         self.current = {
@@ -187,9 +213,12 @@ class ActivityTracker:
                 if settings.get("private_mode") and proc_name.lower() in BROWSER_PROCESSES:
                     title = ""
 
-                changed = (app != prev_app or title != prev_title or status != prev_status)
+                # Проверяем реальную смену окна (с учётом нечёткого сравнения и фильтрации мусора)
+                same_win = is_same_window(app, title, prev_app, prev_title)
+                status_changed = (status != prev_status)
+                window_changed = not same_win
 
-                if changed:
+                if window_changed:
                     now = datetime.now()
                     category = CATEGORIES.get(app)
                     if not category or category == "other":
@@ -199,15 +228,16 @@ class ActivityTracker:
                     with self._lock:
                         if prev_app and prev_app != "—":
                             time_spent = (now - self.current["since"]).total_seconds()
-                            if prev_app == app and time_spent < 5:
-                                pass
-                            else:
-                                self.history.appendleft({
-                                     "app":       prev_app,
-                                     "title":     prev_title,
-                                     "category":  CATEGORIES.get(prev_app, "other"),
-                                     "timestamp": self.current["since"],
-                                 })
+                            # Игнорируем случайные переключения < 3 секунд
+                            if time_spent >= 3:
+                                # Предотвращаем дубликаты одного и того же окна на верхушке истории
+                                if not (self.history and is_same_window(self.history[0].get("app"), self.history[0].get("title"), prev_app, prev_title)):
+                                    self.history.appendleft({
+                                         "app":       prev_app,
+                                         "title":     prev_title,
+                                         "category":  CATEGORIES.get(prev_app, "other"),
+                                         "timestamp": self.current["since"],
+                                     })
                         self.current = {
                             "app":      app,
                             "title":    title,
@@ -222,10 +252,24 @@ class ActivityTracker:
                     for cb in self._on_change_callbacks:
                         try: cb(self.current)
                         except Exception: pass
-                else:
+
+                elif status_changed:
+                    # Изменился ТОЛЬКО статус активности (active <-> afk)
+                    # Окно осталось прежним — историю НЕ трогаем и время since НЕ сбрасываем!
                     with self._lock:
                         self.current["status"] = status
-                        self.current["afk"]    = status == "afk"
+                        self.current["afk"]    = (status == "afk")
+                    prev_status = status
+                    for cb in self._on_change_callbacks:
+                        try: cb(self.current)
+                        except Exception: pass
+
+                else:
+                    # Окно и статус те же. Если заголовок стал чуть длиннее/подробнее — мягко обновляем
+                    if title and title != prev_title:
+                        with self._lock:
+                            self.current["title"] = title
+                        prev_title = title
 
                 with self._lock:
                     if status == "active":
@@ -435,14 +479,25 @@ class ActivityTracker:
     def _clean_title(self, title, app_name):
         if not title:
             return ""
-        for suffix in [" \u2014 Google Chrome", " - Google Chrome",
-                       " \u2014 Mozilla Firefox", " - Mozilla Firefox",
-                       " \u2014 Microsoft Edge", " - Microsoft Edge",
-                       " \u2014 Opera", " - Opera", " - Brave"]:
+        # 1. Удаляем распространённые суффиксы браузеров
+        for suffix in [
+            " — Google Chrome", " - Google Chrome",
+            " — Mozilla Firefox", " - Mozilla Firefox",
+            " — Microsoft Edge", " - Microsoft Edge",
+            " — Microsoft\u200b Edge", " - Microsoft\u200b Edge",
+            " — Яндекс Браузер", " - Яндекс Браузер",
+            " — Yandex Browser", " - Yandex Browser",
+            " — Opera GX", " - Opera GX",
+            " — Opera", " - Opera",
+            " - Brave", " — Brave",
+            " - Vivaldi", " — Vivaldi",
+        ]:
             if title.endswith(suffix):
-                title = title[:-len(suffix)]
+                title = title[:-len(suffix)].strip()
                 break
-        return title[:120]
+        # 2. Срезаем бейджи уведомлений и плеера в начале: (1), [2], (99+), ●, ▶, 🔴, *
+        title = re.sub(r'^(?:\(\d+\+?\)|\[\d+\+?\]|[●▶►🔴\*\s])+\s*', '', title)
+        return title[:120].strip()
 
     def _clean_process_name(self, name):
         return name.replace(".exe", "").replace(".EXE", "").capitalize() or "Неизвестно"

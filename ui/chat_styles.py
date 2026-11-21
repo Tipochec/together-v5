@@ -365,6 +365,63 @@ body{
     color:#fff;
 }
 
+/* ── Индикатор набора текста (3 прыгающие точки) ─────────────────────── */
+.typing-bubble{
+    align-self:flex-start;
+    margin:0 0 6px 14px;
+    padding:7px 14px;
+    background:rgba(28,25,36,0.95);
+    border:1px solid rgba(255,255,255,0.09);
+    border-radius:14px 14px 14px 4px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35);
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    width:fit-content;
+    animation:fadeInBubble 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index:15;
+    flex-shrink:0;
+}
+
+.typing-dots{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    height:12px;
+}
+
+.typing-dots span{
+    width:6px;
+    height:6px;
+    background:#a29bfe;
+    border-radius:50%;
+    display:inline-block;
+    animation:jumpingDots 1.3s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1){ animation-delay:-0.32s; }
+.typing-dots span:nth-child(2){ animation-delay:-0.16s; }
+.typing-dots span:nth-child(3){ animation-delay:0s; }
+
+@keyframes jumpingDots{
+    0%, 80%, 100%{
+        transform:scale(0.65) translateY(0);
+        opacity:0.35;
+        background:#a29bfe;
+    }
+    40%{
+        transform:scale(1.18) translateY(-4px);
+        opacity:1;
+        background:#fd79a8;
+        box-shadow:0 0 6px rgba(253,121,168,0.6);
+    }
+}
+
+@keyframes fadeInBubble{
+    from{ opacity:0; transform:scale(0.85) translateY(4px); }
+    to{ opacity:1; transform:scale(1) translateY(0); }
+}
+
 /* ── Нижняя панель ввода (Dock) ──────────────────────────────────────── */
 .input, .input-dock{
     min-height:58px;

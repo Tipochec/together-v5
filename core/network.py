@@ -147,6 +147,7 @@ class NetworkManager:
         self._on_status_change = []
         self._on_message = []
         self._on_heart = []
+        self._on_typing = []
         self._running = False
         self._connected = False   # для колбэка on_status_change (эдж-детект)
         self._last_seen = 0       # timestamp последнего ЛЮБОГО пакета от партнёра
@@ -177,6 +178,25 @@ class NetworkManager:
 
     def on_heart(self, cb):
         self._on_heart.append(cb)
+
+    def on_typing(self, cb):
+        self._on_typing.append(cb)
+
+    def send_typing(self, is_typing: bool):
+        """Отправляет партнеру легкий сигнал о наборе текста (без сохранения в оффлайн-буфер)."""
+        s = load_settings()
+        packet = {
+            "type": "typing",
+            "pairing_key": (s.get("pairing_key") or "").strip(),
+            "device_id": s.get("device_id") or "",
+            "is_typing": bool(is_typing),
+        }
+        sock = self._client_socket
+        if sock:
+            try:
+                self._send_raw(sock, packet)
+            except Exception:
+                pass
 
     def get_partner_data(self):
         with self._lock:
@@ -554,7 +574,24 @@ class NetworkManager:
     def _build_payload(self):
         s = load_settings()
         current = self.tracker.get_current()
-        history = self.tracker.get_history()[:10]
+        history = self.tracker.get_history()
+        from core.tracker import is_same_window
+        formatted_history = []
+        for h in history:
+            app = h.get("app", "—")
+            title = h.get("title", "")
+            if formatted_history and is_same_window(formatted_history[-1]["app"], formatted_history[-1]["title"], app, title):
+                continue
+            formatted_history.append({
+                "app":   app,
+                "title": title,
+                "time":  h["timestamp"].strftime("%H:%M") if h.get("timestamp") else "—",
+                "ts":    h["timestamp"].isoformat() if h.get("timestamp") else "0",
+                "category": h.get("category","other"),
+            })
+            if len(formatted_history) >= 20:
+                break
+
         return {
             "type": "activity",
             # .strip() тут обязателен и должен совпадать с тем, как ключ
@@ -582,16 +619,7 @@ class NetworkManager:
             # обнаружил (это чинит баг с ложным сбросом времени входа при
             # перезапуске приложения на стороне того, кто СМОТРИТ статус)
             "online_since": self.tracker.get_session_start().isoformat(),
-            "history": [
-                {
-                    "app":   h.get("app","—"),
-                    "title": h.get("title",""),
-                    "time":  h["timestamp"].strftime("%H:%M") if h.get("timestamp") else "—",
-                    "ts":    h["timestamp"].isoformat() if h.get("timestamp") else "0",
-                    "category": h.get("category","other"),
-                }
-                for h in history
-            ],
+            "history": formatted_history,
         }
         
     def _trigger_flush_outgoing(self):
@@ -742,6 +770,9 @@ class NetworkManager:
             elif packet_type == "heart":
                 self._process_heart(data)
 
+            elif packet_type == "typing":
+                self._process_typing(data)
+
             elif packet_type == "partner_offline":
                 self._process_partner_offline(data)
 
@@ -820,6 +851,18 @@ class NetworkManager:
                 cb(data)
             except Exception:
                 pass
+
+    def _process_typing(self, data):
+        self._last_seen = time.time()
+        my_dev = (load_settings().get("device_id") or "").strip()
+        if my_dev and data.get("device_id") == my_dev:
+            return
+        is_typing = bool(data.get("is_typing", False))
+        for cb in list(self._on_typing):
+            try:
+                cb(is_typing)
+            except Exception as e:
+                _log(f"TYPING: ошибка в обработчике on_typing: {e}")
 
     def _process_heart(self, data):
         self._last_seen = time.time()

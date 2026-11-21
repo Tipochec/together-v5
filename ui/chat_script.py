@@ -31,6 +31,7 @@ async function loadChat() {
     }
 
     const chat = document.getElementById("chat-list");
+    onPartnerTyping(false);
 
     chat.innerHTML = "";
 
@@ -188,6 +189,12 @@ async function sendCatSticker(btnEl) {
         input.focus();
     }
     cancelReply();
+    if (_typingTimer) clearTimeout(_typingTimer);
+    _typingTimer = null;
+    if (_lastSentTyping > 0) {
+        reportTyping(false);
+        _lastSentTyping = 0;
+    }
 
     try {
         if (window.pywebview && pywebview.api && pywebview.api.send_message) {
@@ -253,6 +260,12 @@ async function sendMessage() {
     autoResizeMessageBox();
     updateCharCounter();
     cancelReply();
+    if (_typingTimer) clearTimeout(_typingTimer);
+    _typingTimer = null;
+    if (_lastSentTyping > 0) {
+        reportTyping(false);
+        _lastSentTyping = 0;
+    }
     input.disabled = true;
     try {
         await pywebview.api.send_message(
@@ -551,6 +564,67 @@ async function confirmClearChat() {
     }
 }
 
+// ── Логика статуса набора текста ("Печатает...") ───────────────────────
+let _typingTimer = null;
+let _lastSentTyping = 0;
+
+function reportTyping(isTyping) {
+    if (window.pywebview && pywebview.api && pywebview.api.send_typing_status) {
+        pywebview.api.send_typing_status(!!isTyping).catch(() => {});
+    }
+}
+
+function handleUserTyping() {
+    const input = document.getElementById("message");
+    const val = input ? input.value.trim() : "";
+    const now = Date.now();
+
+    if (!val) {
+        if (_typingTimer) clearTimeout(_typingTimer);
+        _typingTimer = null;
+        if (_lastSentTyping > 0) {
+            reportTyping(false);
+            _lastSentTyping = 0;
+        }
+        return;
+    }
+
+    // Шлём сигнал "печатает" не чаще 1 раза в 2.5 секунды при активном наборе
+    if (now - _lastSentTyping > 2500) {
+        reportTyping(true);
+        _lastSentTyping = now;
+    }
+
+    if (_typingTimer) clearTimeout(_typingTimer);
+    _typingTimer = setTimeout(() => {
+        reportTyping(false);
+        _lastSentTyping = 0;
+    }, 3500);
+}
+
+let _partnerTypingTimer = null;
+
+function onPartnerTyping(isTyping) {
+    const bubble = document.getElementById("typing-bubble");
+    if (!bubble) return;
+
+    if (_partnerTypingTimer) {
+        clearTimeout(_partnerTypingTimer);
+        _partnerTypingTimer = null;
+    }
+
+    if (isTyping) {
+        bubble.style.display = "inline-flex";
+        scrollToBottom();
+        // Автоматически скрываем через 5 секунд, если новый сигнал не пришел
+        _partnerTypingTimer = setTimeout(() => {
+            bubble.style.display = "none";
+        }, 5000);
+    } else {
+        bubble.style.display = "none";
+    }
+}
+
 window.addEventListener("pywebviewready", () => {
     loadChat();
     loadRecentFromBackend();
@@ -568,6 +642,15 @@ window.addEventListener("pywebviewready", () => {
         input.addEventListener("input", () => {
             autoResizeMessageBox();
             updateCharCounter();
+            handleUserTyping();
+        });
+        input.addEventListener("blur", () => {
+            if (_typingTimer) clearTimeout(_typingTimer);
+            _typingTimer = null;
+            if (_lastSentTyping > 0) {
+                reportTyping(false);
+                _lastSentTyping = 0;
+            }
         });
 
         // Предотвращение зависания на Windows 11 при вставке картинок/гифок из буфера

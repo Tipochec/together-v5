@@ -43,14 +43,24 @@ class WindowAPI:
         partner = _network.get_partner_data() if _network else None
         connected = _network.is_connected()     if _network else False
 
+        from core.tracker import is_same_window
         def fmt(items, who):
-            return [{
-                "app":   h.get("app","—"),
-                "title": h.get("title",""),
-                "time":  h["timestamp"].strftime("%H:%M") if h.get("timestamp") else "—",
-                "ts":    h["timestamp"].isoformat()       if h.get("timestamp") else "0",
-                "who":   who,
-            } for h in items[:10]]
+            res = []
+            for h in items:
+                app = h.get("app", "—")
+                title = h.get("title", "")
+                if res and is_same_window(res[-1]["app"], res[-1]["title"], app, title):
+                    continue
+                res.append({
+                    "app":   app,
+                    "title": title,
+                    "time":  h["timestamp"].strftime("%H:%M") if h.get("timestamp") else "—",
+                    "ts":    h["timestamp"].isoformat()       if h.get("timestamp") else "0",
+                    "who":   who,
+                })
+                if len(res) >= 20:
+                    break
+            return res
 
         return {
             "my": {
@@ -410,6 +420,15 @@ class WindowAPI:
         from core.chat import save_recent_emojis
         return save_recent_emojis(emojis)
 
+    def send_typing_status(self, is_typing):
+        if _network:
+            try:
+                _network.send_typing(bool(is_typing))
+                return True
+            except Exception:
+                return False
+        return False
+
     def toggle_autostart(self):
         from core.autostart import setup_autostart, is_autostart_enabled
         enabled = is_autostart_enabled()
@@ -591,6 +610,16 @@ def run_webview_loop(tracker, network, stats=None):
         _flash_taskbar_if_unfocused()
 
     network.on_heart(_on_incoming_heart)
+
+    def _on_incoming_typing(is_typing):
+        if _chat_window:
+            try:
+                js_val = "true" if is_typing else "false"
+                _chat_window.evaluate_js(f"onPartnerTyping({js_val});")
+            except Exception:
+                pass
+
+    network.on_typing(_on_incoming_typing)
 
     def _flash_taskbar_if_unfocused():
         try:

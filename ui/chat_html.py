@@ -51,6 +51,14 @@ HTML = r"""
   <div class="kaomoji-grid" id="kaomoji-grid"></div>
 </div>
 
+<div id="typing-bubble" class="typing-bubble" style="display:none">
+  <div class="typing-dots">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</div>
+
 <div id="reply-preview" class="reply-preview" style="display:none">
   <div class="reply-preview-body">
     <div class="reply-preview-sender" id="reply-preview-sender"></div>

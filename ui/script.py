@@ -210,7 +210,15 @@ function updateTimeline(myH,herH,myGender,herGender){
     const isNew = topKey !== _prevFirst[colKey];
     _prevFirst[colKey] = topKey;
 
-    return items.slice(0,8).map((h,i)=>{
+    const filtered = [];
+    for(const item of items){
+      if(!item) continue;
+      if(filtered.length && filtered[filtered.length-1].app === item.app && (filtered[filtered.length-1].title||'') === (item.title||'')) continue;
+      filtered.push(item);
+      if(filtered.length >= 20) break;
+    }
+
+    return filtered.map((h,i)=>{
       const isNewItem = (i === 0 && isNew);
       const app = escapeHtml(h.app);
       const title = h.title ? ' — '+escapeHtml(h.title) : '';
