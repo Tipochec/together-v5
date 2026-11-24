@@ -137,12 +137,17 @@ body{
     color:#ef4444;
 }
 
+.title-btn.btn-test-typing:hover{
+    background:rgba(108,92,231,0.25);
+    color:#fff;
+}
+
 /* ── Область сообщений ────────────────────────────────────────────────── */
 .messages{
     flex:1;
     min-height:0;
     overflow-y:auto;
-    padding:16px 14px;
+    padding:16px 14px 20px 14px;
     display:flex;
     flex-direction:column;
     gap:10px;

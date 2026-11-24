@@ -23,6 +23,13 @@ function scrollToBottom(smooth = false) {
     }
 }
 
+function isUserNearBottom() {
+    const chat = document.getElementById("chat-list");
+    if (!chat) return true;
+    const distanceToBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight;
+    return distanceToBottom <= 90;
+}
+
 async function loadChat() {
     let stickersMap = {};
     try {
@@ -42,6 +49,7 @@ async function loadChat() {
 
     const chat = document.getElementById("chat-list");
     const container = document.getElementById("messages-body") || chat;
+    const wasNearBottom = isUserNearBottom();
 
     container.innerHTML = "";
 
@@ -53,7 +61,9 @@ async function loadChat() {
                 <div class="empty-chat-desc">Напишите партнёру тёплое сообщение!</div>
             </div>
         `;
-        scrollToBottom();
+        if (wasNearBottom) {
+            scrollToBottom();
+        }
         return;
     }
 
@@ -168,7 +178,9 @@ async function loadChat() {
     if (bubble) {
         bubble.style.display = _partnerIsTyping ? "inline-flex" : "none";
     }
-    scrollToBottom();
+    if (wasNearBottom) {
+        scrollToBottom();
+    }
 }
 
 // ── Ответ на конкретное сообщение ─────────────────────────────────────
@@ -181,6 +193,10 @@ function startReply(msg) {
     document.getElementById("reply-preview-sender").textContent = window._replyingTo.sender;
     document.getElementById("reply-preview-text").textContent = window._replyingTo.text;
     document.getElementById("reply-preview").style.display = "flex";
+    requestAnimationFrame(() => {
+        scrollToBottom(true);
+        setTimeout(() => scrollToBottom(true), 50);
+    });
     const input = document.getElementById("message");
     if (input) input.focus();
 }
@@ -230,6 +246,11 @@ async function sendCatSticker(btnEl) {
 function cancelReply() {
     window._replyingTo = null;
     document.getElementById("reply-preview").style.display = "none";
+    requestAnimationFrame(() => {
+        if (isUserNearBottom()) {
+            scrollToBottom(false);
+        }
+    });
 }
 
 // Копирование текста сообщения в буфер обмена — по клику на 📋,
@@ -621,6 +642,7 @@ let _partnerTypingTimer = null;
 let _partnerIsTyping = false;
 
 function onPartnerTyping(isTyping) {
+    const wasAlreadyTyping = _partnerIsTyping;
     _partnerIsTyping = !!isTyping;
     const bubble = document.getElementById("typing-bubble");
 
@@ -632,8 +654,11 @@ function onPartnerTyping(isTyping) {
     if (!bubble) return;
 
     if (isTyping) {
+        const nearBottom = isUserNearBottom();
         bubble.style.display = "inline-flex";
-        scrollToBottom(true);
+        if (nearBottom && !wasAlreadyTyping) {
+            scrollToBottom(true);
+        }
         // Автоматически скрываем через 5 секунд, если новый сигнал не пришел
         _partnerTypingTimer = setTimeout(() => {
             _partnerIsTyping = false;
@@ -641,6 +666,29 @@ function onPartnerTyping(isTyping) {
         }, 5000);
     } else {
         bubble.style.display = "none";
+    }
+}
+
+let _testTypingInterval = null;
+function toggleTestTyping() {
+    const btn = document.getElementById("btn-test-typing");
+    if (_testTypingInterval || _partnerIsTyping) {
+        if (_testTypingInterval) clearInterval(_testTypingInterval);
+        _testTypingInterval = null;
+        onPartnerTyping(false);
+        if (btn) {
+            btn.style.background = "";
+            btn.style.color = "#a29bfe";
+        }
+    } else {
+        onPartnerTyping(true);
+        if (btn) {
+            btn.style.background = "rgba(108, 92, 231, 0.35)";
+            btn.style.color = "#fff";
+        }
+        _testTypingInterval = setInterval(() => {
+            onPartnerTyping(true);
+        }, 2500);
     }
 }
 
@@ -683,6 +731,13 @@ window.addEventListener("pywebviewready", () => {
             }
         });
     }
+
+    document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.altKey && (e.key === "t" || e.key === "T" || e.key === "е" || e.key === "Е")) {
+            e.preventDefault();
+            toggleTestTyping();
+        }
+    });
 });
 
 function onHeartReceived(senderName){

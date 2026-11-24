@@ -3,7 +3,7 @@
 """
 import json, sys, os, threading
 from .html import HTML
-from ui.chat_html import HTML as CHAT_HTML
+from ui.chat_html import HTML as CHAT_HTML, get_chat_html
 from .styles import CSS
 from .script import JS
 from datetime import datetime
@@ -499,7 +499,7 @@ def open_chat_window():
     chat_title = "Together (Тест) • Чат" if is_test_instance() else "Together • Чат"
     _chat_window = webview.create_window(
         title=chat_title,
-        html=CHAT_HTML,
+        html=get_chat_html(),
         js_api=WindowAPI(),
         width=380,
         height=580,

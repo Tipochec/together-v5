@@ -1,7 +1,8 @@
 from .chat_styles import CSS
 from .chat_script import JS
+from core.paths import is_test_instance
 
-HTML = r"""
+HTML_TEMPLATE = r"""
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -22,6 +23,7 @@ HTML = r"""
   </div>
 
   <div class="title-actions">
+    {test_btn}
     <button class="title-btn btn-clear" onclick="clearChat()" title="Очистить историю (только у себя)">🗑</button>
     <button class="title-btn btn-close" onclick="pywebview.api.close_chat()" title="Закрыть">✕</button>
   </div>
@@ -115,7 +117,16 @@ HTML = r"""
 </html>
 """
 
-HTML = HTML.format(
-    styles=CSS,
-    script=JS
-)
+def get_chat_html():
+    test_btn = (
+        '<button class="title-btn btn-test-typing" id="btn-test-typing" '
+        'onclick="toggleTestTyping()" title="[ТЕСТ] Эмуляция набора текста партнёром (Ctrl+Alt+T)" '
+        'style="color:#a29bfe;font-size:13px">⌨️</button>'
+    ) if is_test_instance() else ''
+    return HTML_TEMPLATE.format(
+        styles=CSS,
+        script=JS,
+        test_btn=test_btn
+    )
+
+HTML = get_chat_html()
